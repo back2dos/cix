@@ -1,24 +1,37 @@
 package cix.css;
 
 import tink.csss.Selector;
-import haxe.macro.Expr;
 using tink.CoreApi;
 
-typedef CompoundValue = ListOf<ListOf<Located<ValueKind>>>;
+typedef CompoundValue = ListOf<ListOf<SingleValue>>;
 
 typedef Located<T> = tink.parse.Located<T, tink.parse.Position>;
 
+typedef SingleValue = Located<ValueKind>;
+
 enum ValueKind {
-  Numeric(value:Float, ?unit:Unit);
-  Ident(name:String);
-  Code(c:CodeKind);
+  VNumeric(value:Float, ?unit:Unit);
+  VIdent(name:String);
+  VString(value:String);
+  VExpr(c:ExprKind);
+  VCall(name:StringAt, args:ListOf<SingleValue>);
 }
 
-enum CodeKind {
-  Var(name:String);
+typedef StringAt = Located<String>;
 
+enum ExprKind {
+  XVar(name:String);
 }
 
 @:enum abstract Unit(String) {
   var Px = 'px';
+}
+
+typedef Declaration = {
+  var properties(default, null):ListOf<NamedWith<StringAt, CompoundValue>>;
+  var variables(default, null):ListOf<NamedWith<StringAt, CompoundValue>>;
+  var childRules(default, null):ListOf<{
+    var selector(default, null):Selector;
+    var declaration(default, null):Declaration;
+  }>;
 }

@@ -44,30 +44,45 @@ class Parser extends tink.csss.Parser<Position, Error> {
         else Failure(makeError('expected `:`', makePos(this.pos)))
     );
 
+  function parseNumber(num, sign) {
+    if (allowHere('.'))
+      num += Std.parseFloat('0.' + parseInt(true).sure());
+    return VNumeric(num * sign, switch ident(true) {
+      case Success(n):
+        cast n.toString();
+      default: null;
+    });    
+  }
+
+  function tryParseNumber(sign, fallback) 
+    return 
+      if (is(DIGIT)) 
+        parseNumber(parseInt(true).sure(), sign);
+      else if (is('.'.code)) 
+        parseNumber(0, sign);
+      else
+        fallback();
+
   function parseSingleValue():Located<ValueKind>
     return located(
       function () return 
-        if (allow("${")) {
-          throw 'not implemented';
-        }
-        else if (is(DIGIT)) {
-          var num:Float = parseInt(true).sure();
-          if (allowHere('.'))
-            num += Std.parseFloat('0.' + parseInt(true).sure());
-          Numeric(num, switch ident(true) {
-            case Success(n):
-              cast n.toString();
-            default: null;
-          });
-        }
-        else if (is('.'.code)) {
-          throw 'float';
-        }
-        else {
+        if (allow("${")) 
+          die('complex interpolation not supported yet');
+        else if (allowHere('$')) VExpr(XVar(ident(true).sure()));
+        else if (is('"\'')) VString(parseString());
+        else if (allowHere('-')) 
+          tryParseNumber(-1, die.bind('number expected'));
+        else tryParseNumber(1, function () {
           var val = ident(true).sure();
-          Ident(val);
-        }
+          return 
+            if (allowHere('('))
+              VCall(strAt(val), parseList(parseSingleValue, { sep: ',', end: ')' }));
+            else VIdent(val);
+        })
     );
+
+  function strAt(s:StringSlice):StringAt
+    return { pos: makePos(s.start, s.end), value: s };
 
   function parseValue():CompoundValue {
     var cur = [];
@@ -93,6 +108,9 @@ class Parser extends tink.csss.Parser<Position, Error> {
     return ret;
   }
 
+  function namedVal()
+    return new NamedWith(strAt(ident().sure()) + expect(':'), parseValue());
+
   function parseDeclaration():Declaration {
     var properties = [],
         childRules = [],
@@ -102,7 +120,7 @@ class Parser extends tink.csss.Parser<Position, Error> {
       if (allowHere('@')) 
         die('no support for at rules yet');
       else if (allowHere('$')) 
-        variables.push(new NamedWith(ident().sure() + expect(':'), parseValue()));    
+        variables.push(namedVal());    
       else switch attempt(parseFullSelector.catchExceptions.bind()) {
         case Success(selector):
           if (error != null)
@@ -112,8 +130,7 @@ class Parser extends tink.csss.Parser<Position, Error> {
             declaration: expect('{') + parseDeclaration() + expect('}'),
           });    
         default: 
-          
-          properties.push(new NamedWith(ident().sure() + expect(':'), parseValue()));    
+          properties.push(namedVal());    
       }
 
     while (!upNext(BR_CLOSE) && pos < max) 
@@ -134,13 +151,4 @@ class Parser extends tink.csss.Parser<Position, Error> {
     return Vendored('invalid');
   }
 
-}
-
-typedef Declaration = {
-  var properties(default, null):ListOf<NamedWith<StringSlice, CompoundValue>>;
-  var variables(default, null):ListOf<NamedWith<StringSlice, CompoundValue>>;
-  var childRules(default, null):ListOf<{
-    var selector(default, null):Selector;
-    var declaration(default, null):Declaration;
-  }>;
 }

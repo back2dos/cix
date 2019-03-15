@@ -6,12 +6,15 @@ class Run {
 	#if !macro
   static function main() {
 		parse('
+			$size: 3px;
 			background: green;
 			border: 1px solid red;
+			font: $size "Courier New";
+			transform: translate(5px, 10px);
 			div {
-				margin: 5px;
-				$foo: 3px;
-				& {
+				margin-top: -5px;
+				transition: all .25s;
+				&:hover {
 
 				}
 			}
