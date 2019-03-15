@@ -1,0 +1,7 @@
+{
+  "name": "cix",
+  "scripts": {
+    "postinstall": "lix download",
+    "test": "lix run travix interp"
+  }
+}

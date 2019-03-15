@@ -1,0 +1,18 @@
+{
+	"name": "cix",
+	"license": "MIT",
+	"tags": [
+		"css"
+	],
+	"classPath": "src",
+	"description": "",
+	"contributors": [
+		"back2dos"
+	],
+	"releasenote": "Initial haxelib release.",
+	"version": "0.1.0",
+	"url": "https://github.com/back2dos/cix",
+	"dependencies": {
+		"tink_parse": ""
+	}
+}
