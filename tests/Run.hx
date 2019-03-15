@@ -7,6 +7,7 @@ class Run {
   static function main() {
 		parse('
 			background: green;
+			border: 1px solid red;
 			div {
 				margin: 5px;
 				$foo: 3px;
@@ -20,8 +21,7 @@ class Run {
 	macro static function parse(e:haxe.macro.Expr) {
 		switch e.expr {
 			case EConst(CString(s)):
-				var pos = haxe.macro.Context.getPosInfos(e.pos);
-				var p = new cix.css.Parser(s, tink.parse.Reporter.expr(pos.file), pos.min + 1);
+				var p = new cix.css.Parser(s, e.pos);
 				trace(@:privateAccess p.parseDeclaration());
 			default: throw 'assert';
 		}
