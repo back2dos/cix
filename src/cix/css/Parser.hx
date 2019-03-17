@@ -6,19 +6,13 @@ import tink.csss.Selector;
 import cix.css.Ast;
 using tink.CoreApi;
 import haxe.macro.Expr;
+import tink.parse.Position;
 
 class Parser extends tink.csss.Parser<Position, Error> {
 
   static var NOBREAK = !LINEBREAK;
   static var BR_CLOSE = Char('}'.code);
   static var AMP = Char('&'.code);
-
-  public function new(source:String, pos:Position) {
-    #if macro
-      var pos = haxe.macro.Context.getPosInfos(pos);
-    #end
-    super(source, tink.parse.Reporter.expr(pos.file), pos.min);
-  }
   
   override function doSkipIgnored() {
     super.doSkipIgnored();
@@ -150,5 +144,17 @@ class Parser extends tink.csss.Parser<Position, Error> {
       error = makeError('Unknown pseudo selector $name', makePos(name.start, name.end));
     return Vendored('invalid');
   }
+
+  static public function parseExpr(e:Expr):Outcome<Declaration, Error>
+    return switch e.expr {
+      case EConst(CString(s)):
+        var pos:Position = e.pos;
+        var p = new Parser(s, tink.parse.Reporter.expr(pos.file), pos.min + 1);
+        try Success(p.parseDeclaration())
+        catch (e:Error) Failure(e)
+        catch (e:Dynamic) Failure(new Error(Std.string(e), pos));
+      default:
+        Failure(new Error('string constant expected', e.pos)); 
+    }
 
 }
