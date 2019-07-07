@@ -13,6 +13,14 @@ class Parser extends tink.csss.Parser<Position, Error> {
   static var NOBREAK = !LINEBREAK;
   static var BR_CLOSE = Char('}'.code);
   static var AMP = Char('&'.code);
+
+  static var binOps = {
+    var groups = [
+      ['+' => OpAdd]
+    ];
+
+    [for (prio in 0...groups.length) for (tk => op in groups[prio]) tk => { prio: prio, op: op }];
+  }
   
   override function doSkipIgnored() {
     super.doSkipIgnored();
@@ -57,12 +65,13 @@ class Parser extends tink.csss.Parser<Position, Error> {
       else
         fallback();
 
-  function parseSingleValue():Located<ValueKind>
+  function parseSingleValue(?noComplex):Located<ValueKind>
     return located(
       function () return 
         if (allow("${")) 
-          die('complex interpolation not supported yet');
-        else if (allowHere('$')) VExpr(XVar(ident(true).sure()));
+          if (noComplex) die('recursive interpolation not allowed');
+          else parseComplex() + expect('}');
+        else if (allowHere('$')) VVar(ident(true).sure());
         else if (is('"\'')) VString(parseString());
         else if (allowHere('-')) 
           tryParseNumber(-1, die.bind('number expected'));
@@ -70,10 +79,19 @@ class Parser extends tink.csss.Parser<Position, Error> {
           var val = ident(true).sure();
           return 
             if (allowHere('('))
-              VCall(strAt(val), parseList(parseSingleValue, { sep: ',', end: ')' }));
-            else VIdent(val);
+              VCall(strAt(val), parseList(parseSingleValue.bind(), { sep: ',', end: ')' }));
+            else VString(val);
         })
     );
+
+  function parseComplex() 
+    return
+      if (allow('(')) die('parens not supported yet');
+      else {
+        var first = parseSingleValue(true);
+        
+        first.value;
+      }
 
   function strAt(s:StringSlice):StringAt
     return { pos: makePos(s.start, s.end), value: s };
@@ -113,18 +131,22 @@ class Parser extends tink.csss.Parser<Position, Error> {
     function parseParts() 
       if (allowHere('@')) 
         die('no support for at rules yet');
-      else if (allowHere('$')) 
-        variables.push(namedVal());    
-      else switch attempt(parseFullSelector.catchExceptions.bind()) {
-        case Success(selector):
+      else if (allowHere('$')) {
+        var v = namedVal();
+        variables.push({ name: v.name, value: v.value });    
+      }
+      else switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
+        case Success({ value: selector, pos: pos }):
           if (error != null)
             throw error;
           childRules.push({
             selector: selector,
+            pos: pos,
             declaration: expect('{') + parseDeclaration() + expect('}'),
           });    
         default: 
-          properties.push(namedVal());    
+          var v = namedVal();
+          properties.push({ name: v.name, value: v.value, isImportant: false });    
       }
 
     while (!upNext(BR_CLOSE) && pos < max) 

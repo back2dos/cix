@@ -1,6 +1,7 @@
 package cix.css;
 
 #if macro
+import cix.css.Generator;
 using tink.MacroApi;
 class Macros {
   static function buildImport() {
@@ -20,9 +21,18 @@ class Macros {
       for (v in decl.properties)
         v.name.pos.error('cannot have properties at top level');
 
-      // for (v in decl.variables) {
-        
-      // }
+      for (v in decl.childRules)
+        switch v.selector {
+          case _[0][0] => { id: null, attrs: { length: 0 }, classes: { length: 0 }, pseudos: { length: 0 }, tag: tag } if (tag != null && tag != '&'):
+            ret.fields.push({
+              access: [AStatic, APublic],
+              pos: v.pos,
+              name: tag,
+              kind: FVar(macro : String),
+            });
+          default:
+            v.pos.error('plain identifier expected');
+        }
 
       return ret;
     });

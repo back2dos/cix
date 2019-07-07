@@ -11,27 +11,37 @@ typedef SingleValue = Located<ValueKind>;
 
 enum ValueKind {
   VNumeric(value:Float, ?unit:Unit);
-  VIdent(name:String);
+  VVar(name:String);
+  VColor(h:Float, v:Float, l:Float, o:Float);
   VString(value:String);
-  VExpr(c:ExprKind);
+  VBinOp(op:BinOp, lh:SingleValue, rh:SingleValue);
   VCall(name:StringAt, args:ListOf<SingleValue>);
 }
 
 typedef StringAt = Located<String>;
 
-enum ExprKind {
-  XVar(name:String);
+enum BinOp {
+  OpAdd;
 }
 
-@:enum abstract Unit(String) {
+enum abstract Unit(String) to String {
   var Px = 'px';
 }
 
 typedef Declaration = {
-  var properties(default, null):ListOf<NamedWith<StringAt, CompoundValue>>;
-  var variables(default, null):ListOf<NamedWith<StringAt, CompoundValue>>;
-  var childRules(default, null):ListOf<{
-    var selector(default, null):Selector;
-    var declaration(default, null):Declaration;
+  final properties:ListOf<{
+    final name:StringAt;
+    final value:CompoundValue;
+    final isImportant:Bool;
+  }>;
+  final variables:ListOf<{
+    final name:StringAt;
+    final value:CompoundValue;
+    // final var isDefault:Bool;
+  }>;
+  final childRules:ListOf<{
+    final selector:Selector;
+    final pos:tink.parse.Position;
+    final declaration:Declaration;
   }>;
 }
