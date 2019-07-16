@@ -4,13 +4,19 @@ package cix.css;
 import cix.css.Ast;
 import tink.csss.Selector;
 import haxe.macro.Expr;
+import haxe.macro.Type;
 import tink.parse.*;
 
+using StringTools;
 using tink.MacroApi;
 using tink.CoreApi;
 
 class Generator<Error> {
   
+  static var counter = 0;
+  static dynamic public function generateName(src:DeclarationSource, decl:Declaration):String
+    return 'cix_${counter++}';
+
   var reporter:Reporter<Position, Error>;
   
   function compoundValue(v:CompoundValue, resolve) 
@@ -19,26 +25,18 @@ class Generator<Error> {
         [for (single in v) singleValue(single, resolve)].join(' ')
     ].join(', ');
 
-  static var calls:Map<String, (orig:SingleValue, args:ListOf<SingleValue>)->Outcome<SingleValue, String>> = [
-    'calc' => (o, _) -> Success(o),
-    'saturate' => (orig, args) -> switch args {
-      case [{ value: VColor(h, s, l, o) }, { value: VNumeric(v, null) }]: 
-        Success({ pos: orig.pos, value: VColor(h, Math.max(0, Math.min(1, s * v)), l, o)});
-      default: Failure('invalid arguments');
-    },
+  var getCall:(name:StringAt, reporter:Reporter<Position, Error>)->((orig:SingleValue, args:ListOf<SingleValue>)->Outcome<SingleValue, Error>);
 
-  ];
-
-  public function new(reporter) {
+  public function new(reporter, getCall) {
     this.reporter = reporter;
+    this.getCall = getCall;
   }
 
   function fail(message, pos):Dynamic
     return throw reporter.makeError(message, pos);
 
-  public function declaration(d:Declaration) {
-    return generateDeclaration(null, d, new Map());
-  }
+  public function rule(src:DeclarationSource, d:Declaration) 
+    return generateDeclaration(generateName(src, d), d, new Map());
 
   function generateDeclaration(path:String, d:Declaration, vars:Map<String, SingleValue>) {
     
@@ -54,10 +52,18 @@ class Generator<Error> {
       switch [path, d.properties] {
         case [null, []]: '';
         case [null, v]: fail('no properties allowed at top level', v[0].name.pos);
-        case [_, v]: '';
+        case [_, props]: 
+          var all = '$path {';
+          for (p in props)
+            all += '\n\t${p.name.value}: ${compoundValue(p.value, vars.get)}${if (p.isImportant) ' !important' else ''};';
+          all +'\n}';
       }
 
-    return rules;
+    for (c in d.childRules) {
+      ret += '\n\n' + generateDeclaration(c.selector.raw.trim().replace('&', path), c.declaration, vars);
+    }
+
+    return ret;
   }
 
   function map(s:SingleValue, f:SingleValue->SingleValue)
@@ -70,15 +76,9 @@ class Generator<Error> {
     });
 
   function call(s, name:StringAt, args)
-    return switch calls[name.value] {
-      case null: Failure(reporter.makeError('Unknown method ${name.value}', name.pos));
-      case f: switch f(s, args) {
-        case Success(v): Success(v);
-        case Failure(m): Failure(reporter.makeError(m, s.pos));
-      }
-    }
+    return getCall(name, reporter)(s, args);
 
-  function reduce(s:SingleValue, resolve:String->Option<SingleValue>) {
+  function reduce(s:SingleValue, resolve:String->Null<SingleValue>) {
     
     var error = None;
 
@@ -92,8 +92,8 @@ class Generator<Error> {
         Success(map(s, s -> switch s.value {
           case VVar(name):
             switch resolve(name) {
-              case Some(v): v;
-              case None: fail(reporter.makeError('unknown identifier $name', s.pos));
+              case null: fail(reporter.makeError('unknown identifier $name', s.pos));
+              case v: v;
             }
           case VBinOp(_):
             fail(reporter.makeError('bin ops not implemented yet', s.pos));
@@ -108,7 +108,7 @@ class Generator<Error> {
   }
 
   function singleValue(s, resolve)
-    return reduce(s, resolve);
+    return reducedValue(reduce(s, resolve).sure());
 
   function reducedValue(s:SingleValue):String {
 
@@ -131,5 +131,11 @@ class Generator<Error> {
         throw 'assert';
     }
   }
+}
+
+enum DeclarationSource {
+  InlineRule(pos:Position, localType:BaseType, localMethod:Null<String>);
+  NamedRule(name:StringAt, localType:BaseType, localMethod:Null<String>);
+  Field(name:StringAt, cls:BaseType);
 }
 #end

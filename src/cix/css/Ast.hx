@@ -40,7 +40,10 @@ typedef Declaration = {
     // final var isDefault:Bool;
   }>;
   final childRules:ListOf<{
-    final selector:Selector;
+    final selector:{
+      final raw:String;
+      final parsed:Selector;
+    };
     final pos:tink.parse.Position;
     final declaration:Declaration;
   }>;

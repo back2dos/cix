@@ -8,11 +8,10 @@ using tink.CoreApi;
 import haxe.macro.Expr;
 import tink.parse.Position;
 
-class Parser extends tink.csss.Parser<Position, Error> {
+class Parser extends SelectorParser {
 
-  static var NOBREAK = !LINEBREAK;
-  static var BR_CLOSE = Char('}'.code);
-  static var AMP = Char('&'.code);
+  static final NOBREAK = !LINEBREAK;
+  static final BR_CLOSE = Char('}'.code);
 
   static var binOps = {
     var groups = [
@@ -30,14 +29,6 @@ class Parser extends tink.csss.Parser<Position, Error> {
     else if (allowHere('//')) 
       doReadWhile(NOBREAK);
   }
-
-  override function shouldContinue()
-    return super.shouldContinue() || is(AMP);
-
-  override function parseSelectorPart() 
-    return
-      if (allow('&')) parseSelectorNext('&');
-      else super.parseSelectorPart();
 
   function parseProperty() 
     return ident(true).flatMap(function (s) 
@@ -130,23 +121,29 @@ class Parser extends tink.csss.Parser<Position, Error> {
 
     function parseParts() 
       if (allowHere('@')) 
-        die('no support for at rules yet');
+        die('no support for @ rules yet');
       else if (allowHere('$')) {
         var v = namedVal();
         variables.push({ name: v.name, value: v.value });    
       }
-      else switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
-        case Success({ value: selector, pos: pos }):
-          if (error != null)
-            throw error;
-          childRules.push({
-            selector: selector,
-            pos: pos,
-            declaration: expect('{') + parseDeclaration() + expect('}'),
-          });    
-        default: 
-          var v = namedVal();
-          properties.push({ name: v.name, value: v.value, isImportant: false });    
+      else {
+        var start = pos;
+        switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
+          case Success({ value: selector, pos: pos }):
+            if (error != null)
+              throw error;
+            childRules.push({
+              selector: {
+                parsed: selector,
+                raw: source[start...this.pos].toString()
+              },
+              pos: pos,
+              declaration: expect('{') + parseDeclaration() + expect('}'),
+            });    
+          default: 
+            var v = namedVal();
+            properties.push({ name: v.name, value: v.value, isImportant: false });    
+        }
       }
 
     while (!upNext(BR_CLOSE) && pos < max) 
@@ -167,7 +164,7 @@ class Parser extends tink.csss.Parser<Position, Error> {
     return Vendored('invalid');
   }
 
-  static public function parseExpr(e:Expr):Outcome<Declaration, Error>
+  static public function parseDecl(e:Expr):Outcome<Declaration, Error>
     return switch e.expr {
       case EConst(CString(s)):
         var pos:Position = e.pos;

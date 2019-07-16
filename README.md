@@ -68,7 +68,7 @@ The first macro creates a single `ClassName`, while the second creates an object
 
 ### Sassy syntax
 
-This syntax is relatively close to sass.
+This syntax is leaning towards sass, to the degree that it's practical.
 
 ```haxe
 css('
@@ -108,7 +108,7 @@ css({
 
 ### Mixing both
 
-You can put haxy rules into sassy rules wrapped by `${<haxy styles>}`, wherever a style block is expected. You can do the converse as `('<sassy styles>')`, like so:
+You can put haxy rules into sassy rules wrapped by `${<haxy styles>}`, wherever a style block is expected. You can do the converse as `'{<sassy styles>}'`, like so:
 
 ```haxe
 css('
@@ -120,11 +120,11 @@ css('
   }  
   &:hover ${{
     background: $color,
-    div: ('
-      background: blue,
-    ')
+    div: '{
+      background: blue;
+    }'
   }}
 ')
 ```
 
-You should avoid mixing syntax in this manner. It's mostly meant to easy copy-pasting styles from one syntax into another.
+You should avoid mixing syntax in this manner. It's mostly meant to easy copy-pasting styles from one syntax into another. Please note that in a haxy rule set, the distinction between a value and a sassy sub-rule is made by looking whether the first non-white-space character is a `{` or not. This is relatively fragile.
