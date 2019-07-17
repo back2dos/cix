@@ -23,7 +23,7 @@ class Style {
       default: throw 'assert';
     }
 
-    trace(gen.rule(InlineRule(e.pos, localType, getLocalMethod()), rule));
-    return macro null;
+    var ret = gen.rule(InlineRule(e.pos, localType, getLocalMethod()), rule);
+    return macro @:pos(e.pos) $v{ret.className};
   }
 }

@@ -9,7 +9,7 @@ package tink.domspec;
 
 abstract ClassName(String) to String {
   
-  @:op(a + b) public function add(that:ClassName):ClassName;
+  public function add(that:ClassName):ClassName;
 
   @:from static function ofMap(parts:Map<String, Bool>):ClassName;  
   @:from static function ofArray(parts:Array<String>):ClassName;
@@ -18,7 +18,7 @@ abstract ClassName(String) to String {
 }
 ```
 
-With such class names, you can write code like `<button class=${BUTTON.add(HUGE)} />`.
+With such class names, you can write code like `<button class=${BUTTON.add(HUGE)} />` (assuming both `BUTTON` and `HUGE` being class names). 
 
 To create these class names names via cix, you would use one of the macros from its facade:
 
@@ -128,3 +128,11 @@ css('
 ```
 
 You should avoid mixing syntax in this manner. It's mostly meant to easy copy-pasting styles from one syntax into another. Please note that in a haxy rule set, the distinction between a value and a sassy sub-rule is made by looking whether the first non-white-space character is a `{` or not. This is relatively fragile.
+
+# CSS generation
+
+The css can be generated in two different modes, i.e. embedded (requires compiling to JS an will embed the CSS in the generated JavaScript) or aside, producing a standalone cix file. To do that, you would build with either of these:
+
+- `-D cix-output=/absolute/path/file.css`
+- `-D cix-output=./path/relative/to/cwd/file.css`
+- `-D cix-output=path/relative/to/compiler-output/file.css`

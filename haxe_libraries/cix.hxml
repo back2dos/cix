@@ -1,3 +1,4 @@
 -cp src
 -lib tink_csss
 -lib tink_macro
+-lib tink_domspec

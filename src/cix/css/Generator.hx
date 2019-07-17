@@ -3,6 +3,7 @@ package cix.css;
 #if macro
 import cix.css.Ast;
 import tink.csss.Selector;
+import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Type;
 import tink.parse.*;
@@ -13,9 +14,37 @@ using tink.CoreApi;
 
 class Generator<Error> {
   
-  static var counter = 0;
-  static dynamic public function generateName(src:DeclarationSource, decl:Declaration):String
-    return 'cix_${counter++}';
+  @:persistent static var counter = 0;
+
+  static public var namespace = 
+    switch Context.definedValue('cix-namespace') {
+      case null | '': 'cix';
+      case v: v; 
+    }
+
+  static function typeName(b:BaseType)
+    return b.pack.concat([b.name]).join('.');
+
+  static dynamic public function showSource(src:DeclarationSource)
+    return
+      #if debug
+        '';
+      #else
+        switch src {
+          case InlineRule(_, t, m): join([typeName(t), m]);
+          case NamedRule(n, t, m): join([typeName(t), m, n.value]);
+          case Field(n, t): join([typeName(t), n.value]);
+        }
+      #end
+
+  static public dynamic function join(parts:Array<String>)
+    return [for (p in parts) if (p != null) switch p.trim() {
+      case '': continue;
+      case v: v;
+    }].join('﹕');
+
+  static public dynamic function generateClass(src:DeclarationSource, decl:Declaration):String
+    return join([namespace, showSource(src), '${counter++}']);
 
   var reporter:Reporter<Position, Error>;
   
@@ -35,8 +64,13 @@ class Generator<Error> {
   function fail(message, pos):Dynamic
     return throw reporter.makeError(message, pos);
 
-  public function rule(src:DeclarationSource, d:Declaration) 
-    return generateDeclaration(generateName(src, d), d, new Map());
+  public function rule(src:DeclarationSource, d:Declaration) {
+    var className = generateClass(src, d);
+    return {
+      className: className,
+      css: generateDeclaration('.$className', d, new Map())
+    }
+  }
 
   function generateDeclaration(path:String, d:Declaration, vars:Map<String, SingleValue>) {
     
