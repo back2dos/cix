@@ -14,7 +14,8 @@ class Style {
     
     var gen = new Generator(
       tink.parse.Reporter.expr(getPosInfos(e.pos).file),
-      (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos))
+      (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos)),
+      Generator.resultExpr
     );
 
     var localType:BaseType = switch follow(getLocalType()) {
@@ -23,7 +24,6 @@ class Style {
       default: throw 'assert';
     }
 
-    var ret = gen.rule(InlineRule(e.pos, localType, getLocalMethod()), rule);
-    return macro @:pos(e.pos) $v{ret.className};
+    return gen.rule(InlineRule(e.pos, localType, getLocalMethod()), rule);
   }
 }

@@ -131,7 +131,15 @@ You should avoid mixing syntax in this manner. It's mostly meant to easy copy-pa
 
 # CSS generation
 
-The css can be generated in two different modes, i.e. embedded (requires compiling to JS an will embed the CSS in the generated JavaScript) or aside, producing a standalone cix file. To do that, you would build with either of these:
+The css can be generated in two different modes, i.e. embedded or separate.
+
+## Embedded CSS
+
+In this mode, the CSS is embedded into the output, and will be registered via `cix.css.Runtime.addRule`, which is only implemented for the browser (i.e. it will create a style sheet on the fly and add rules as necessary). If you target any other environment, you need shadow the class with an implementation that can do the job.
+
+## Separate CSS
+
+In this mode, cix will output the CSS into a standalone file that you may use as you see fit. To do that, you need to set the `-D cix-output` define in any of these ways:
 
 - `-D cix-output=/absolute/path/file.css`
 - `-D cix-output=./path/relative/to/cwd/file.css`

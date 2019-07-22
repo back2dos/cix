@@ -12,8 +12,18 @@ using StringTools;
 using tink.MacroApi;
 using tink.CoreApi;
 
-class Generator<Error> {
+class Generator<Error, Result> {
   
+  #if macro 
+  static public function resultExpr(pos:Position, className:String, css:String) 
+    return
+      #if cix_output
+        #error
+      #else
+        macro @:pos(pos) cix.css.Declarations.add($v{className}, () -> $v{css});
+      #end
+  #end
+
   @:persistent static var counter = 0;
 
   static public var namespace = 
@@ -28,13 +38,13 @@ class Generator<Error> {
   static dynamic public function showSource(src:DeclarationSource)
     return
       #if debug
-        '';
-      #else
         switch src {
           case InlineRule(_, t, m): join([typeName(t), m]);
           case NamedRule(n, t, m): join([typeName(t), m, n.value]);
           case Field(n, t): join([typeName(t), n.value]);
         }
+      #else
+        '';
       #end
 
   static public dynamic function join(parts:Array<String>)
@@ -55,10 +65,17 @@ class Generator<Error> {
     ].join(', ');
 
   var getCall:(name:StringAt, reporter:Reporter<Position, Error>)->((orig:SingleValue, args:ListOf<SingleValue>)->Outcome<SingleValue, Error>);
+  var generateResult:(pos:Position, className:String, css:String)->Result;
+  var makeClass:(src:DeclarationSource, decl:Declaration)->String;
 
-  public function new(reporter, getCall) {
+  public function new(reporter, getCall, generateResult, ?makeClass) {
     this.reporter = reporter;
     this.getCall = getCall;
+    this.generateResult = generateResult;
+    this.makeClass = switch makeClass {
+      case null: generateClass;
+      case v: v;
+    }
   }
 
   function fail(message, pos):Dynamic
@@ -66,10 +83,14 @@ class Generator<Error> {
 
   public function rule(src:DeclarationSource, d:Declaration) {
     var className = generateClass(src, d);
-    return {
-      className: className,
-      css: generateDeclaration('.$className', d, new Map())
-    }
+    return generateResult(
+      switch src {
+        case InlineRule(pos, _): pos;
+        case NamedRule(n, _) | Field(n, _): n.pos;
+      },
+      className, 
+      generateDeclaration('.$className', d, new Map())
+    );
   }
 
   function generateDeclaration(path:String, d:Declaration, vars:Map<String, SingleValue>) {

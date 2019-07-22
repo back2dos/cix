@@ -1,9 +1,24 @@
 package cix.css;
 
-import tink.domspec.ClassName;
-
 class Runtime {
-  static public function declare(className:ClassName, css:()->String) {
-    return className;
+  #if js
+    static var indices = new Map();
+    static var sheet:js.html.CSSStyleSheet = {
+      var style = js.Browser.document.createStyleElement();
+      js.Browser.document.head.appendChild(style);
+      cast style.sheet;
+    }
+  #end
+  @:require(js && !nodejs)
+  static public function addRule(id:String, css:String) {
+    #if js        
+      sheet.insertRule(
+        css, 
+        switch indices[id] {
+          case null: indices[id] = sheet.cssRules.length;
+          case v: v;
+        }
+      );
+    #end
   }
 }

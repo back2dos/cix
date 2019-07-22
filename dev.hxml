@@ -1,5 +1,4 @@
 tests.hxml
 -lib travix
 -lib cix
--js out.js
---no-output
+-js bin/out.js
