@@ -2,3 +2,4 @@ tests.hxml
 -lib travix
 -lib cix
 -js bin/out.js
+-D cix-output=out.css

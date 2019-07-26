@@ -17,6 +17,8 @@ package ;
 // 	}
 // '>;
 
+import A;
+
 class Run {
   static function main() {
 		cix.Style.rule('

@@ -1,2 +1,3 @@
+-dce full
 -cp tests
 -main Run
