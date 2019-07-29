@@ -142,7 +142,7 @@ class Generator<Error, Result> {
   }
 
   function generateDeclaration(paths:Array<String>, d:Declaration, vars:Map<String, SingleValue>) {
-    
+    trace(paths);
     vars = vars.copy();
 
     for (v in d.variables)
@@ -167,7 +167,7 @@ class Generator<Error, Result> {
 
     for (c in d.childRules) 
       ret += '\n\n' + generateDeclaration(
-        [for (p in paths) new Printer(' ', p).selector(c.selector)], 
+        [for (p in paths) for (o in c.selector) Printer.combine(' ', p, o)], 
         c.declaration, 
         vars
       );
@@ -250,17 +250,27 @@ enum DeclarationSource {
 
 private class Printer extends tink.csss.Printer {
   var path:String;
-
-  public function new(space, path) {
+  var found:Bool = false;
+  function new(space, path) {
     super(space);
     this.path = path;
+  }
+
+  static public function combine(space:String, path:String, option:SelectorOption) {
+    var p = new Printer(space, path);
+    var ret = p.option(option);
+    return 
+      if (p.found) ret;
+      else '$path $ret';
   }
   
   override public function part(s:SelectorPart) {
     var ret = super.part(s);
     return 
-      if (ret.charAt(0) == '&')
+      if (ret.charAt(0) == '&') {
+        found = true;
         path + ret.substr(1);
+      }
       else ret;
   }
 }
