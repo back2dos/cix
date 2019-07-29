@@ -124,6 +124,8 @@ class Generator<Error, Result> {
     }
   }
 
+  // static var print = new tink.csss.Printer(' ');
+
   function fail(message, pos):Dynamic
     return throw reporter.makeError(message, pos);
 
@@ -135,11 +137,11 @@ class Generator<Error, Result> {
         case NamedRule(n, _) | Field(n, _): n.pos;
       },
       className, 
-      generateDeclaration('.$className', d, new Map())
+      generateDeclaration(['.$className'], d, new Map())
     );
   }
 
-  function generateDeclaration(path:String, d:Declaration, vars:Map<String, SingleValue>) {
+  function generateDeclaration(paths:Array<String>, d:Declaration, vars:Map<String, SingleValue>) {
     
     vars = vars.copy();
 
@@ -150,19 +152,25 @@ class Generator<Error, Result> {
       }
 
     var ret = 
-      switch [path, d.properties] {
-        case [null, []]: '';
-        case [null, v]: fail('no properties allowed at top level', v[0].name.pos);
-        case [_, props]: 
-          var all = '$path {';
+      switch [paths, d.properties] {
+        // case [null, []]: '';
+        // case [null, v]: fail('no properties allowed at top level', v[0].name.pos);// probably unreachable
+        case [_, props]:
+
+          var all = '${paths.join(', ')} {';
+        
           for (p in props)
             all += '\n\t${p.name.value}: ${compoundValue(p.value, vars.get)}${if (p.isImportant) ' !important' else ''};';
+        
           all +'\n}';
       }
 
-    for (c in d.childRules) {
-      ret += '\n\n' + generateDeclaration(c.selector.raw.trim().replace('&', path), c.declaration, vars);
-    }
+    for (c in d.childRules) 
+      ret += '\n\n' + generateDeclaration(
+        [for (p in paths) new Printer(' ', p).selector(c.selector)], 
+        c.declaration, 
+        vars
+      );
 
     return ret;
   }
@@ -172,7 +180,7 @@ class Generator<Error, Result> {
       case VBinOp(op, lh, rh):
         { pos: s.pos, value: VBinOp(op, f(lh), f(rh)) };
       case VCall(name, args):
-        { pos: s.pos, value: VCall(name, args.map(f)) };
+        { pos: s.pos, value: VCall(name, [for (a in args) f(a)]) };
       default: s;
     });
 
@@ -226,7 +234,7 @@ class Generator<Error, Result> {
         value;
       case VBinOp(op, rec(_) => lh, rec(_) => rh):
         '$lh $op $rh';
-      case VCall(name, _.map(rec).join(', ') => args):
+      case VCall(name, [for (a in _) rec(a)].join(',') => args):
         '${name.value}($args)';
       default: 
         throw 'assert';
@@ -238,5 +246,22 @@ enum DeclarationSource {
   InlineRule(pos:Position, localType:BaseType, localMethod:Null<String>);
   NamedRule(name:StringAt, localType:BaseType, localMethod:Null<String>);
   Field(name:StringAt, cls:BaseType);
+}
+
+private class Printer extends tink.csss.Printer {
+  var path:String;
+
+  public function new(space, path) {
+    super(space);
+    this.path = path;
+  }
+  
+  override public function part(s:SelectorPart) {
+    var ret = super.part(s);
+    return 
+      if (ret.charAt(0) == '&')
+        path + ret.substr(1);
+      else ret;
+  }
 }
 #end

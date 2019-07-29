@@ -126,17 +126,13 @@ class Parser extends SelectorParser {
         var v = namedVal();
         variables.push({ name: v.name, value: v.value });    
       }
-      else {
-        var start = pos;
+      else 
         switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
           case Success({ value: selector, pos: pos }):
             if (error != null)
               throw error;
             childRules.push({
-              selector: {
-                parsed: selector,
-                raw: source[start...this.pos].toString()
-              },
+              selector: selector,
               pos: pos,
               declaration: expect('{') + parseDeclaration() + expect('}'),
             });    
@@ -144,7 +140,6 @@ class Parser extends SelectorParser {
             var v = namedVal();
             properties.push({ name: v.name, value: v.value, isImportant: false });    
         }
-      }
 
     while (!upNext(BR_CLOSE) && pos < max) 
       parseParts();

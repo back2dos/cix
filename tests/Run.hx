@@ -27,6 +27,13 @@ class Run {
 			&:hover {
 				background: red;
 			}
+			foo, bar {
+				beep, boop {
+					&+& {
+						margin: 2em;
+					}
+				}
+			}
 		');
 	}	
 }
