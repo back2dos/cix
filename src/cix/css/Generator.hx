@@ -93,14 +93,17 @@ class Generator<Error, Result> {
         '';
       #end
 
-  static public dynamic function join(parts:Array<String>)
+  static public function strip(parts:Array<String>)
     return [for (p in parts) if (p != null) switch p.trim() {
       case '': continue;
       case v: v;
-    }].join('–');// this is an en dash (U+2013) to avoid collision with the more likely minus
+    }];  
+
+  static public dynamic function join(parts:Array<String>)
+    return parts.join('–');// this is an en dash (U+2013) to avoid collision with the more likely minus
 
   static public dynamic function generateClass(src:DeclarationSource, decl:Declaration):String
-    return join([namespace, showSource(src), '${counter++}']);
+    return join(strip([namespace, showSource(src), '${counter++}']));
 
   var reporter:Reporter<Position, Error>;
   
