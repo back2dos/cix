@@ -142,7 +142,6 @@ class Generator<Error, Result> {
   }
 
   function generateDeclaration(paths:Array<String>, d:Declaration, vars:Map<String, SingleValue>) {
-    trace(paths);
     vars = vars.copy();
 
     for (v in d.variables)
@@ -152,27 +151,28 @@ class Generator<Error, Result> {
       }
 
     var ret = 
-      switch [paths, d.properties] {
-        // case [null, []]: '';
-        // case [null, v]: fail('no properties allowed at top level', v[0].name.pos);// probably unreachable
-        case [_, props]:
+      switch d.properties {
+        case []: [];
+        case props:
 
-          var all = '${paths.join(', ')} {';
+          var all = '${paths.join(',\n')} {';
         
           for (p in props)
             all += '\n\t${p.name.value}: ${compoundValue(p.value, vars.get)}${if (p.isImportant) ' !important' else ''};';
         
-          all +'\n}';
+          [all +'\n}'];
       }
 
-    for (c in d.childRules) 
-      ret += '\n\n' + generateDeclaration(
+    for (c in d.childRules) {
+      var decl = generateDeclaration(
         [for (p in paths) for (o in c.selector) Printer.combine(' ', p, o)], 
         c.declaration, 
         vars
       );
+      if (decl != '') ret.push(decl);
+    }
 
-    return ret;
+    return ret.join('\n\n');
   }
 
   function map(s:SingleValue, f:SingleValue->SingleValue)
