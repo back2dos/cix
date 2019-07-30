@@ -37,14 +37,17 @@ class Parser extends SelectorParser {
         else Failure(makeError('expected `:`', makePos(this.pos)))
     );
 
-  function parseNumber(num, sign) {
-    if (allowHere('.'))
-      num += Std.parseFloat('0.' + parseInt(true).sure());
-    return VNumeric(num * sign, switch ident(true) {
+  function parseUnit() 
+    return switch ident(true) {
       case Success(n):
         cast n.toString();
       default: null;
-    });    
+    }
+
+  function parseNumber(num, sign) {
+    if (allowHere('.'))
+      num += Std.parseFloat('0.' + parseInt(true).sure());
+    return VNumeric(num * sign, parseUnit());    
   }
 
   function tryParseNumber(sign, fallback) 
@@ -56,13 +59,15 @@ class Parser extends SelectorParser {
       else
         fallback();
 
-  function parseSingleValue(?noComplex):Located<ValueKind>
+  function parseSingleValue(?interpolated):SingleValue
     return located(
       function () return 
         if (allow("${")) 
-          if (noComplex) die('recursive interpolation not allowed');
-          else parseComplex() + expect('}');
-        else if (allowHere('$')) VVar(ident(true).sure());
+          if (interpolated) die('recursive interpolation not allowed');
+          else parseComplex().value + expect('}');
+        else if (allowHere('$')) 
+          if (interpolated) die('recursive interpolation not allowed');
+          else VVar(ident(true).sure());
         else if (is('"\'')) VString(parseString());
         else if (allowHere('-')) 
           tryParseNumber(-1, die.bind('number expected'));
@@ -71,18 +76,23 @@ class Parser extends SelectorParser {
           return 
             if (allowHere('('))
               VCall(strAt(val), parseList(parseSingleValue.bind(), { sep: ',', end: ')' }));
-            else VString(val);
+            else 
+              if (interpolated) VVar(val);
+              else VString(val);
         })
     );
 
-  function parseComplex() 
+  function parseComplex():SingleValue
     return
       if (allow('(')) die('parens not supported yet');
-      else {
-        var first = parseSingleValue(true);
-        
-        first.value;
-      }
+      else parseExprNext(parseSingleValue(true));
+
+  function parseExprNext(initial:SingleValue):SingleValue {
+    for (op in BinOp.all)
+      if (allow(op)) 
+        return { pos: initial.pos, value: VBinOp(op, initial, parseComplex()) };
+    return initial;
+  }
 
   function strAt(s:StringSlice):StringAt
     return { pos: makePos(s.start, s.end), value: s };

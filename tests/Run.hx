@@ -22,7 +22,8 @@ import A;
 class Run {
   static function main() {
 		cix.Style.rule('
-			margin-top: -5px;
+			$margin: 10px;
+			margin-top: ${margin + 2em + 10vh};
 			transition: all .25s;
 			&:hover {
 				background: red;

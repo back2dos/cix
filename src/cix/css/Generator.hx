@@ -194,21 +194,70 @@ class Generator<Error, Result> {
     
     var error = None;
 
-    function fail(e):Dynamic {
+    function fail(msg, ?pos):Dynamic {
+      var e = reporter.makeError(msg, switch pos {
+        case null: s.pos;
+        default: pos;
+      });
       error = Some(e);
       throw error;
     }
+
+    function unit(v:SingleValue)
+      return switch v.value {
+        case VNumeric(_, u): u;
+        case VCall({ value: 'calc' }, _): MixedLength;
+        default: fail('expected numeric value but got ${reducedValue(v)}', v.pos);
+      }  
+
+    function val(v:SingleValue)
+      return switch v.value {
+        case VNumeric(v, _): v;
+        default: throw 'assert';
+      }
+
+    function unpack(v:SingleValue)
+      return switch v.value { 
+        case VCall({ value: 'calc' }, [v]): unpack(v);
+        default: v;
+      }
 
     return 
       try 
         Success(map(s, s -> switch s.value {
           case VVar(name):
             switch resolve(name) {
-              case null: fail(reporter.makeError('unknown identifier $name', s.pos));
+              case null: fail('unknown identifier $name', s.pos);
               case v: v;
             }
-          case VBinOp(_):
-            fail(reporter.makeError('bin ops not implemented yet', s.pos));
+          case VBinOp(op, lh, rh):
+            var unit = switch [op, unit(lh), unit(rh)] {
+              case [OpMult, u, null] | [OpMult, null, u]: u;
+              case [OpMult, a, b]: fail('cannot multiply $a and $b', s.pos);
+              case [OpDiv, u, null]: u;
+              case [OpDiv, _, u]: fail('divisor must be unitless, but has $u', s.pos);
+              case [OpAdd | OpSubt, a, b] if (a == b): a;
+              case [OpAdd | OpSubt, _.getKind() => a, _.getKind() => b]: 
+                if (a == b) MixedLength;//todo: try avoiding nested calcs
+                else fail('cannot perform $op on $a and $b', s.pos);
+            }
+            {
+              pos: s.pos,
+              value:
+                if (unit == MixedLength)
+                  VCall({ value: 'calc', pos: s.pos }, [s]);
+                else {
+                  var lh = val(lh),
+                      rh = val(rh);
+
+                  VNumeric(switch op {
+                    case OpMult: lh * rh;
+                    case OpDiv: lh / rh;
+                    case OpAdd: lh + rh;
+                    case OpSubt: lh - rh;
+                  }, unit);
+                }
+            }
           case VCall(name, args):
             call(s, name, args).sure();
           default: s;
