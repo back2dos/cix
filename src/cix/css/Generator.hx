@@ -127,8 +127,6 @@ class Generator<Error, Result> {
     }
   }
 
-  // static var print = new tink.csss.Printer(' ');
-
   function fail(message, pos):Dynamic
     return throw reporter.makeError(message, pos);
 
