@@ -14,60 +14,67 @@ using haxe.macro.Tools;
 using tink.MacroApi;
 using tink.CoreApi;
 
-class Generator<Error, Result> {
+class Generator<Error, Result> {//TODO: should work outside macro mode
   
   #if macro 
-  static var registered = false;
+  static var initialized = false;
   static final META = ':cix-output';
   static public function resultExpr(localType:BaseType, pos:Position, className:String, css:String) 
-    return
+    return {
       #if cix_output
-        {
-          localType.meta.add(META, [macro @:pos(pos) $v{css}], pos);
-          if (!registered) {
-            registered = true;
-            Context.onGenerate(types -> {
-              Context.onAfterGenerate(() -> {
+        localType.meta.add(META, [macro @:pos(pos) $v{css}], pos);
+        if (!initialized) {
+          initialized = true;
+          Context.onGenerate(types -> {
+            Context.onAfterGenerate(() -> {
 
-                var out = 
-                  sys.io.File.write(
-                    switch Context.definedValue('cix-output').trim() {
-                      case asIs = _.charAt(0) => '.' | '/':
-                        asIs;
-                      case relToOut:
-                        Path.join([sys.FileSystem.absolutePath(Compiler.getOutput().directory()), relToOut]);
-                    }
-                  );
-
-                var first = true;
-                for (t in types)
-                  switch t {
-                    case TInst(_.get().meta => m, _)
-                       | TEnum(_.get().meta => m, _)
-                       | TAbstract(_.get().meta => m, _) if (m.has(META) && m.has(':used')):
-                      for (tag in m.extract(META))
-                        for (e in tag.params)
-                          switch e.expr {
-                            case EConst(CString(s)):
-                              if (first)
-                                first = false;
-                              else 
-                                s = '\n\n\n$s';
-                              out.writeString(s);
-                            default: throw 'assert';
-                          }
-                    default:
+              var out = 
+                sys.io.File.write(
+                  switch Context.definedValue('cix-output').trim() {
+                    case asIs = _.charAt(0) => '.' | '/':
+                      asIs;
+                    case relToOut:
+                      Path.join([sys.FileSystem.absolutePath(Compiler.getOutput().directory()), relToOut]);
                   }
+                );
 
-                out.close();
-              });
+              var first = true;
+              for (t in types)
+                switch t {
+                  case TInst(_.get().meta => m, _)
+                      | TEnum(_.get().meta => m, _)
+                      | TAbstract(_.get().meta => m, _) if (m.has(META) && m.has(':used')):
+                    for (tag in m.extract(META))
+                      for (e in tag.params)
+                        switch e.expr {
+                          case EConst(CString(s)):
+                            if (first)
+                              first = false;
+                            else 
+                              s = '\n\n\n$s';
+                            out.writeString(s);
+                          default: throw 'assert';
+                        }
+                  default:
+                }
+
+              out.close();
             });
-          }
-          macro @:pos(pos) ($v{className}:tink.domspec.ClassName);
+          });
         }
+        macro @:pos(pos) ($v{className}:tink.domspec.ClassName);
       #else
+        if (!initialized) {
+          initialized = true;
+          switch Context.getType('cix.css.Runtime').reduce() {
+            case TInst(_.get().meta.has(':notSupported') => true, _):
+              pos.error('Embedded mode not supported on this platform. See https://github.com/back2dos/cix#css-generation');
+            default:
+          }
+        }
         macro @:pos(pos) cix.css.Declarations.add($v{className}, () -> $v{css});
       #end
+    }
   #end
 
   @:persistent static var counter = 0;
