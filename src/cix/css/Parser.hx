@@ -21,17 +21,17 @@ class Parser extends SelectorParser {
 
     [for (prio in 0...groups.length) for (tk => op in groups[prio]) tk => { prio: prio, op: op }];
   }
-  
+
   override function doSkipIgnored() {
     super.doSkipIgnored();
-    
+
     if (allowHere('/*'))
       upto('*/');
-    else if (allowHere('//')) 
+    else if (allowHere('//'))
       doReadWhile(NOBREAK);
   }
 
-  function parseUnit() 
+  function parseUnit()
     return switch ident(true) {
       case Success(n):
         cast n.toString();
@@ -41,36 +41,36 @@ class Parser extends SelectorParser {
   function parseNumber(num, sign) {
     if (allowHere('.'))
       num += Std.parseFloat('0.' + parseInt(true).sure());
-    return VNumeric(num * sign, parseUnit());    
+    return VNumeric(num * sign, parseUnit());
   }
 
-  function tryParseNumber(sign, fallback) 
-    return 
-      if (is(DIGIT)) 
+  function tryParseNumber(sign, fallback)
+    return
+      if (is(DIGIT))
         parseNumber(parseInt(true).sure(), sign);
-      else if (is('.'.code)) 
+      else if (is('.'.code))
         parseNumber(0, sign);
       else
         fallback();
 
   function parseSingleValue(?interpolated):SingleValue
     return located(
-      function () return 
-        if (allow("${")) 
+      function () return
+        if (allow("${"))
           if (interpolated) die('recursive interpolation not allowed');
           else parseComplex().value + expect('}');
-        else if (allowHere('$')) 
+        else if (allowHere('$'))
           if (interpolated) die('recursive interpolation not allowed');
           else VVar(ident(true).sure());
         else if (is(QUOTE)) VString(parseString());
-        else if (allowHere('-')) 
+        else if (allowHere('-'))
           tryParseNumber(-1, die.bind('number expected'));
         else tryParseNumber(1, function () {
           var val = ident(true).sure();
-          return 
+          return
             if (allowHere('('))
               VCall(strAt(val), parseList(parseSingleValue.bind(), { sep: ',', end: ')' }));
-            else 
+            else
               if (interpolated) VVar(val);
               else VString(val);
         })
@@ -83,7 +83,7 @@ class Parser extends SelectorParser {
 
   function parseExprNext(initial:SingleValue):SingleValue {
     for (op in BinOp.all)
-      if (allow(op)) 
+      if (allow(op))
         return { pos: initial.pos, value: VBinOp(op, initial, parseComplex()) };
     return initial;
   }
@@ -101,19 +101,19 @@ class Parser extends SelectorParser {
 
     while (true) {
 
-      if (isEnd()) 
+      if (isEnd())
         switch cur {
           case []: die('empty value');
           default: break;
         }
 
-      if (allow('!')) 
+      if (allow('!'))
         switch cur {
           case []: die('empty value');
-          default: 
+          default:
             importance++;
             expect('important');
-            while (allow('!')) 
+            while (allow('!'))
               importance++ + expect('important');
 
             expect(';');
@@ -121,7 +121,7 @@ class Parser extends SelectorParser {
         }
 
 
-      if (allow(',')) 
+      if (allow(','))
         switch cur {
           case []: die('empty value');
           default:
@@ -143,14 +143,14 @@ class Parser extends SelectorParser {
       value: parseValue(),
     };
 
-  function parseProperties():ListOf<Property> 
+  function parseProperties():ListOf<Property>
     return
       parseList(
         parseProperty,
         { start: '{', end: '}', sep: ';' }
       );
 
-  function parseKeyFrames():Keyframes 
+  function parseKeyFrames():Keyframes
     return {
       name:
         if (upNext(QUOTE)) located(parseString)
@@ -174,7 +174,7 @@ class Parser extends SelectorParser {
 
   function namedVal()
     return {
-      name: strAt(ident().sure()) + expect(':'), 
+      name: strAt(ident().sure()) + expect(':'),
       value: parseValue()
     };
 
@@ -182,33 +182,35 @@ class Parser extends SelectorParser {
     var properties = [],
         childRules = [],
         variables = [],
-        keyframes = [];
+        keyframes = [],
+        fonts = [];
 
-    function parseParts() 
+    function parseParts()
       if (allowHere('@')) {
         var kw = ident(true).sure();
         switch kw.toString() {
-          case known = 'charset' 
-                     | 'import' 
-                     | 'namespace' 
-                     | 'media' 
-                     | 'supports' 
-                     | 'document' 
-                     | 'page' 
-                     | 'font-face' 
-                     | 'viewport' 
-                     | 'counter-style' 
+          case known = 'charset'
+                     | 'import'
+                     | 'namespace'
+                     | 'media'
+                     | 'supports'
+                     | 'document'
+                     | 'page'
+                     | 'viewport'
+                     | 'counter-style'
                      | 'font-feature-values':
+          case 'font-face':
+            fonts.push(parseProperties());
           case 'keyframes':
-            parseKeyFrames();            
+            keyframes.push(parseKeyFrames());
           case 'state':
             die('no support for states yet');
           case unknown: reject(unknown, 'unknown at-rule $unknown');
         }
       }
-      else if (allowHere('$')) 
+      else if (allowHere('$'))
         variables.push(namedVal());
-      else 
+      else
         switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
           case Success({ value: selector, pos: pos }):
             if (error != null)
@@ -217,15 +219,16 @@ class Parser extends SelectorParser {
               selector: selector,
               pos: pos,
               declaration: expect('{') + parseDeclaration() + expect('}'),
-            });    
-          default: 
+            });
+          default:
             properties.push(parseProperty());
         }
 
-    while (!upNext(BR_CLOSE) && pos < max) 
+    while (!upNext(BR_CLOSE) && pos < max)
       parseParts();
-    
+
     return {
+      fonts: fonts,
       variables: variables,
       properties: properties,
       childRules: childRules,
@@ -250,7 +253,7 @@ class Parser extends SelectorParser {
         catch (e:Error) Failure(e)
         catch (e:Dynamic) Failure(new Error(Std.string(e), pos));
       default:
-        Failure(new Error('string constant expected', e.pos)); 
+        Failure(new Error('string constant expected', e.pos));
     }
 
 }

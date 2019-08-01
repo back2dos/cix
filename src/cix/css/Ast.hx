@@ -79,6 +79,7 @@ typedef Property = {
 
 typedef Declaration = {
   final properties:ListOf<Property>;
+  final fonts:ListOf<FontFace>;
   final variables:ListOf<{
     final name:StringAt;
     final value:CompoundValue;
@@ -90,6 +91,8 @@ typedef Declaration = {
     final declaration:Declaration;
   }>;
 }
+
+typedef FontFace = ListOf<Property>;
 
 typedef Keyframes = {
   final name:StringAt;
