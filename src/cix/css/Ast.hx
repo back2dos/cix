@@ -3,7 +3,10 @@ package cix.css;
 import tink.csss.Selector;
 using tink.CoreApi;
 
-typedef CompoundValue = ListOf<ListOf<SingleValue>>;
+typedef CompoundValue = {
+  final components:ListOf<ListOf<SingleValue>>;
+  final importance:Int;
+}
 
 typedef Located<T> = tink.parse.Located<T, tink.parse.Position>;
 
@@ -69,20 +72,29 @@ enum abstract UnitKind(String) to String {
   var KAngle = 'angle';
 }
 
+typedef Property = {
+  final name:StringAt;
+  final value:CompoundValue;
+}
+
 typedef Declaration = {
-  final properties:ListOf<{
-    final name:StringAt;
-    final value:CompoundValue;
-    final isImportant:Bool;
-  }>;
+  final properties:ListOf<Property>;
   final variables:ListOf<{
     final name:StringAt;
     final value:CompoundValue;
-    // final var isDefault:Bool;
   }>;
+  final keyframes:ListOf<Keyframes>;
   final childRules:ListOf<{
     final selector:Selector;
     final pos:tink.parse.Position;
     final declaration:Declaration;
+  }>;
+}
+
+typedef Keyframes = {
+  final name:StringAt;
+  final frames:ListOf<{
+    final pos:Int;
+    final properties:ListOf<Property>;
   }>;
 }

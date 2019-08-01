@@ -116,7 +116,7 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
   
   function compoundValue(v:CompoundValue, resolve) 
     return [
-      for (v in v) 
+      for (v in v.components) 
         [for (single in v) singleValue(single, resolve)].join(' ')
     ].join(', ');
 
@@ -153,7 +153,7 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
     vars = vars.copy();
 
     for (v in d.variables)
-      switch v.value {
+      switch v.value.components {
         case [[s]]: vars.set(v.name.value, s);
         default: fail('variables must be initialized with a single value', v.name.pos);
       }
@@ -166,7 +166,7 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
           var all = '${paths.join(',\n')} {';
         
           for (p in props)
-            all += '\n\t${p.name.value}: ${compoundValue(p.value, vars.get)}${if (p.isImportant) ' !important' else ''};';
+            all += '\n\t${p.name.value}: ${compoundValue(p.value, vars.get)}${[for (i in 0...p.value.importance) ' !important'].join('')};';
         
           [all +'\n}'];
       }

@@ -11,7 +11,8 @@ import tink.parse.Position;
 class Parser extends SelectorParser {
 
   static final NOBREAK = !LINEBREAK;
-  static final BR_CLOSE = Char('}'.code);
+  static final BR_CLOSE = Char('}');
+  static final QUOTE = Char('"\'');
 
   static var binOps = {
     var groups = [
@@ -29,13 +30,6 @@ class Parser extends SelectorParser {
     else if (allowHere('//')) 
       doReadWhile(NOBREAK);
   }
-
-  function parseProperty() 
-    return ident(true).flatMap(function (s) 
-      return 
-        if (allow(':')) Success(s);
-        else Failure(makeError('expected `:`', makePos(this.pos)))
-    );
 
   function parseUnit() 
     return switch ident(true) {
@@ -68,7 +62,7 @@ class Parser extends SelectorParser {
         else if (allowHere('$')) 
           if (interpolated) die('recursive interpolation not allowed');
           else VVar(ident(true).sure());
-        else if (is('"\'')) VString(parseString());
+        else if (is(QUOTE)) VString(parseString());
         else if (allowHere('-')) 
           tryParseNumber(-1, die.bind('number expected'));
         else tryParseNumber(1, function () {
@@ -99,43 +93,121 @@ class Parser extends SelectorParser {
 
   function parseValue():CompoundValue {
     var cur = [];
-    var ret = [cur];
+    var components = [cur],
+        importance = 0;
+
+    function isEnd()
+      return allow(';');
+
     while (true) {
 
-      if (allow(';')) 
+      if (isEnd()) 
         switch cur {
           case []: die('empty value');
           default: break;
         }
 
+      if (allow('!')) 
+        switch cur {
+          case []: die('empty value');
+          default: 
+            importance++;
+            expect('important');
+            while (allow('!')) 
+              importance++ + expect('important');
+
+            expect(';');
+            break;
+        }
+
+
       if (allow(',')) 
         switch cur {
           case []: die('empty value');
           default:
-            ret.push(cur = []);
+            components.push(cur = []);
         }
 
       cur.push(parseSingleValue());
     }
 
-    return ret;
+    return {
+      components: components,
+      importance: importance,
+    };
+  }
+
+  function parseProperty():Property
+    return {
+      name: strAt(ident().sure()) + expect(':'),
+      value: parseValue(),
+    };
+
+  function parseProperties():ListOf<Property> 
+    return
+      parseList(
+        parseProperty,
+        { start: '{', end: '}', sep: ';' }
+      );
+
+  function parseKeyFrames():Keyframes 
+    return {
+      name:
+        if (upNext(QUOTE)) located(parseString)
+        else strAt(ident(true).sure()),
+      frames:
+        parseList(
+          () -> {
+            pos: switch ident() {
+              case Success(_.toString() => v = 'from' | 'to' ):
+                if (v == 'from') 100;
+                else 0;
+              case Success(id): reject(id, 'only `from`, `to` or percentage allowed');
+              default:
+                parseInt().sure() + expect('%');
+            },
+            properties: parseProperties()
+          },
+          { start: '{', end: '}' }
+        )
   }
 
   function namedVal()
-    return new NamedWith(strAt(ident().sure()) + expect(':'), parseValue());
+    return {
+      name: strAt(ident().sure()) + expect(':'), 
+      value: parseValue()
+    };
 
   function parseDeclaration():Declaration {
     var properties = [],
         childRules = [],
-        variables = [];
+        variables = [],
+        keyframes = [];
 
     function parseParts() 
-      if (allowHere('@')) 
-        die('no support for @ rules yet');
-      else if (allowHere('$')) {
-        var v = namedVal();
-        variables.push({ name: v.name, value: v.value });    
+      if (allowHere('@')) {
+        var kw = ident(true).sure();
+        switch kw.toString() {
+          case known = 'charset' 
+                     | 'import' 
+                     | 'namespace' 
+                     | 'media' 
+                     | 'supports' 
+                     | 'document' 
+                     | 'page' 
+                     | 'font-face' 
+                     | 'viewport' 
+                     | 'counter-style' 
+                     | 'font-feature-values':
+          case 'keyframes':
+            parseKeyFrames();            
+          case 'state':
+            die('no support for states yet');
+          case unknown: reject(unknown, 'unknown at-rule $unknown');
+        }
       }
+      else if (allowHere('$')) 
+        variables.push(namedVal());
       else 
         switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
           case Success({ value: selector, pos: pos }):
@@ -147,8 +219,7 @@ class Parser extends SelectorParser {
               declaration: expect('{') + parseDeclaration() + expect('}'),
             });    
           default: 
-            var v = namedVal();
-            properties.push({ name: v.name, value: v.value, isImportant: false });    
+            properties.push(parseProperty());
         }
 
     while (!upNext(BR_CLOSE) && pos < max) 
@@ -158,6 +229,7 @@ class Parser extends SelectorParser {
       variables: variables,
       properties: properties,
       childRules: childRules,
+      keyframes: keyframes,
     }
   }
 
