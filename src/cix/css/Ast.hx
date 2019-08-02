@@ -78,18 +78,45 @@ typedef Property = {
 }
 
 typedef Declaration = {
-  final properties:ListOf<Property>;
-  final fonts:ListOf<FontFace>;
+  
   final variables:ListOf<{
     final name:StringAt;
     final value:CompoundValue;
   }>;
+
+  final fonts:ListOf<FontFace>;
   final keyframes:ListOf<Keyframes>;
+  
+  final properties:ListOf<Property>;
+
   final childRules:ListOf<{
     final selector:Selector;
     final pos:tink.parse.Position;
     final declaration:Declaration;
   }>;
+
+  final mediaQueries:ListOf<MediaQuery>;
+}
+
+typedef MediaQuery = {
+  final conditions:ListOf<{
+    final negated:Bool;
+    final condition:MediaCondition;
+  }>;
+  final declaration:Declaration;
+}
+
+enum MediaCondition {
+  And(a:MediaCondition, b:MediaCondition);
+  Feature(name:StringAt, val:SingleValue);
+  Type(t:MediaType);
+}
+
+enum abstract MediaType(String) to String {
+  var All = 'all';
+  var Print = 'print';
+  var Screen = 'screen';
+  var Speech = 'speech';
 }
 
 typedef FontFace = ListOf<Property>;

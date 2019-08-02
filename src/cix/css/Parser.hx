@@ -150,6 +150,46 @@ class Parser extends SelectorParser {
         { start: '{', end: '}', sep: ';' }
       );
 
+  function getMediaType(?s:StringSlice):MediaCondition
+    return 
+      if (s == null) getMediaType(ident().sure());
+      else Type(switch s.toString() {
+        case v = All | Print | Screen | Speech: cast v;
+        default: reject(s, 'invalid media type');
+      });
+
+  function getMediaFeature():MediaCondition
+    return Feature(strAt(ident().sure()) + expect(':'), parseSingleValue()) + expect(')');
+
+  function parseMediaQuery():MediaQuery {
+
+    function parseNext(c:MediaCondition)
+      return
+        switch ident() {
+          case Success(_.toString() => 'and'):
+            parseNext(And(c, if (allow('(')) getMediaFeature() else getMediaType()));
+          default: c;
+        }
+
+    function make(negated, condition)
+      return { negated: negated, condition: parseNext(condition) };
+
+    return {
+      conditions: parseList(
+        () -> switch ident() {
+          case Success(_.toString() => 'not'): 
+            make(true, getMediaType());
+          case Success(id): 
+            make(false, getMediaType(id));
+          default: 
+            make(false, expect('(') + getMediaFeature());
+        }, 
+        { end: '{', sep: ',', trailing: Never }
+      ),
+      declaration: parseDeclaration() + expect('}')
+    }
+  }
+
   function parseKeyFrames():Keyframes
     return {
       name:
@@ -183,7 +223,8 @@ class Parser extends SelectorParser {
         childRules = [],
         variables = [],
         keyframes = [],
-        fonts = [];
+        fonts = [],
+        mediaQueries = [];
 
     function parseParts()
       if (allowHere('@')) {
@@ -192,13 +233,14 @@ class Parser extends SelectorParser {
           case known = 'charset'
                      | 'import'
                      | 'namespace'
-                     | 'media'
                      | 'supports'
                      | 'document'
                      | 'page'
                      | 'viewport'
                      | 'counter-style'
                      | 'font-feature-values':
+          case 'media':
+            mediaQueries.push(parseMediaQuery());
           case 'font-face':
             fonts.push(parseProperties());
           case 'keyframes':
@@ -228,6 +270,7 @@ class Parser extends SelectorParser {
       parseParts();
 
     return {
+      mediaQueries: mediaQueries,
       fonts: fonts,
       variables: variables,
       properties: properties,
