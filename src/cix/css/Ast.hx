@@ -77,33 +77,43 @@ typedef Property = {
   final value:CompoundValue;
 }
 
-typedef Declaration = {
+typedef DeclarationOf<Child:DeclarationOf<Child>> = {
   
   final variables:ListOf<{
     final name:StringAt;
     final value:CompoundValue;
   }>;
 
-  final fonts:ListOf<FontFace>;
-  final keyframes:ListOf<Keyframes>;
-  
   final properties:ListOf<Property>;
 
   final childRules:ListOf<{
-    final selector:Selector;
-    final pos:tink.parse.Position;
-    final declaration:Declaration;
+    final selector:Located<Selector>;
+    final declaration:Child;
   }>;
 
-  final mediaQueries:ListOf<MediaQuery>;
 }
 
-typedef MediaQuery = {
-  final conditions:ListOf<{
-    final negated:Bool;
-    final condition:MediaCondition;
-  }>;
-  final declaration:Declaration;
+typedef PlainDeclaration = DeclarationOf<PlainDeclaration>;
+
+typedef NormalizedDeclaration = PlainDeclaration & ExtrasOf<PlainDeclaration>;
+
+typedef Declaration = DeclarationOf<Declaration> & ExtrasOf<Declaration>;
+
+typedef ExtrasOf<Child:DeclarationOf<Child>> = {
+  final fonts:ListOf<FontFace>;
+  final keyframes:ListOf<Keyframes>;
+  final mediaQueries:ListOf<MediaQueryOf<Child>>;
+}
+
+typedef MediaQuery = MediaQueryOf<Declaration>;
+
+typedef MediaQueryOf<Child:DeclarationOf<Child>> = {
+  final conditions:ListOf<FullMediaCondition>;
+  final declaration:Child;
+}
+
+typedef FullMediaCondition = Located<MediaCondition> & {
+  final negated:Bool;
 }
 
 enum MediaCondition {

@@ -171,18 +171,25 @@ class Parser extends SelectorParser {
           default: c;
         }
 
-    function make(negated, condition)
-      return { negated: negated, condition: parseNext(condition) };
+    function make(negated, condition) {
+      var cond = located(() -> parseNext(condition()));
+      return { 
+        negated: negated, 
+        value: cond.value,
+        pos: cond.pos
+      };
+    }
+      
 
     return {
       conditions: parseList(
         () -> switch ident() {
           case Success(_.toString() => 'not'): 
-            make(true, getMediaType());
+            make(true, getMediaType.bind());
           case Success(id): 
-            make(false, getMediaType(id));
+            make(false, getMediaType.bind(id));
           default: 
-            make(false, expect('(') + getMediaFeature());
+            make(false, () -> expect('(') + getMediaFeature());
         }, 
         { end: '{', sep: ',', trailing: Never }
       ),
@@ -254,12 +261,11 @@ class Parser extends SelectorParser {
         variables.push(namedVal());
       else
         switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
-          case Success({ value: selector, pos: pos }):
+          case Success(s):
             if (error != null)
               throw error;
             childRules.push({
-              selector: selector,
-              pos: pos,
+              selector: s,
               declaration: expect('{') + parseDeclaration() + expect('}'),
             });
           default:

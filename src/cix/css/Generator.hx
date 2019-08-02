@@ -145,11 +145,77 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
         case NamedRule(n, _) | Field(n, _): n.pos;
       },
       className, 
-      generateDeclaration(['.$className'], d, new Map())
+      {
+        var d = normalize(d);
+        if (d.mediaQueries.length > 0)
+          fail('media queries currently not implemented', d.mediaQueries[0].conditions[0].pos);
+        generateDeclaration(['.$className'], d, new Map());
+      }
     );
   }
 
-  function generateDeclaration(paths:Array<String>, d:Declaration, vars:Map<String, SingleValue>) {
+  function mediaAnd(c1:FullMediaCondition, c2:FullMediaCondition):FullMediaCondition {
+    if (c1.negated != c2.negated)
+      fail('cannot nest negated and non-negated queries', c2.pos);//probably should try to translate the query to its negative
+
+    return {
+      pos: c2.pos,
+      value: And(c1.value, c2.value),
+      negated: c2.negated
+    }
+  }  
+
+  function normalize(d:Declaration):NormalizedDeclaration {
+    //TODO: this will also have to perform variable substitution
+    var fonts = [],
+        keyframes = [],
+        mediaQueries:Array<MediaQueryOf<PlainDeclaration>> = [];
+    
+    function sweep(d:Declaration, selectors:ListOf<Located<Selector>>, queries:ListOf<FullMediaCondition>):PlainDeclaration {
+      
+      for (k in keyframes) 
+        keyframes.push(k);
+
+      for (f in fonts)
+        fonts.push(f);
+
+      for (q in d.mediaQueries)
+        mediaQueries.push({
+          conditions: q.conditions,
+          declaration: 
+            sweep(
+              q.declaration, 
+              selectors, 
+              switch queries {
+                case []: q.conditions;
+                default: [for (outer in queries) for (inner in q.conditions) mediaAnd(outer, inner)];
+              }
+            )
+        });
+
+      return {
+        variables: d.variables,
+        properties: d.properties,
+        childRules: [for (c in d.childRules) {
+          selector: c.selector,
+          declaration: sweep(c.declaration, selectors.concat([c.selector]), queries)
+        }]
+      }
+    }
+
+    var ret = sweep(d, [], []);
+
+    return {
+      fonts: fonts,
+      keyframes: keyframes,
+      mediaQueries: mediaQueries,
+      variables: ret.variables,
+      properties: ret.properties,
+      childRules: ret.childRules,
+    }
+  }  
+
+  function generateDeclaration(paths:Array<String>, d:PlainDeclaration, vars:Map<String, SingleValue>) {
     vars = vars.copy();
 
     for (v in d.variables)
@@ -173,7 +239,7 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
 
     for (c in d.childRules) {
       var decl = generateDeclaration(
-        [for (p in paths) for (o in c.selector) Printer.combine(' ', p, o)], 
+        [for (p in paths) for (o in c.selector.value) Printer.combine(' ', p, o)], 
         c.declaration, 
         vars
       );
