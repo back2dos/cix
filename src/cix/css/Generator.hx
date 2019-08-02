@@ -114,10 +114,10 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
 
   var reporter:Reporter<Position, Error>;
   
-  function compoundValue(v:CompoundValue, resolve) 
+  function compoundValue(v:CompoundValue) 
     return [
       for (v in v.components) 
-        [for (single in v) singleValue(single, resolve)].join(' ')
+        [for (single in v) singleValue(single)].join(' ')
     ].join(', ');
 
   var getCall:(name:StringAt, reporter:Reporter<Position, Error>)->((orig:SingleValue, args:ListOf<SingleValue>)->Outcome<SingleValue, Error>);
@@ -149,7 +149,7 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
         var d = normalize(d);
         if (d.mediaQueries.length > 0)
           fail('media queries currently not implemented', d.mediaQueries[0].conditions[0].pos);
-        generateDeclaration(['.$className'], d, new Map());
+        generateDeclaration(['.$className'], d);
       }
     );
   }
@@ -167,17 +167,50 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
 
   function normalize(d:Declaration):NormalizedDeclaration {
     //TODO: this will also have to perform variable substitution
-    var fonts = [],
-        keyframes = [],
+    var fonts:Array<FontFace> = [],
+        keyframes:Array<Keyframes> = [],
         mediaQueries:Array<MediaQueryOf<PlainDeclaration>> = [];
     
-    function sweep(d:Declaration, selectors:ListOf<Located<Selector>>, queries:ListOf<FullMediaCondition>):PlainDeclaration {
+    function sweep(
+        d:Declaration, 
+        selectors:ListOf<Located<Selector>>, 
+        queries:ListOf<FullMediaCondition>,
+        vars:Map<String, SingleValue>
+      ):PlainDeclaration {
       
+      vars = vars.copy();
+
+      var resolve = id -> vars.get(id);
+
+      function reduce(c:CompoundValue):CompoundValue
+        return {
+          importance: c.importance,
+          components: [for (values in c.components) [for (v in values) this.reduce(v, resolve).sure()]]
+        }
+
+      function props(raw:ListOf<Property>):ListOf<Property>
+        return [for (p in raw) {
+          name: p.name,
+          value: reduce(p.value)
+        }];
+
+      for (v in d.variables)
+        switch reduce(v.value).components {//TODO: probably also forbid !important
+          case [[s]]: vars.set(v.name.value, s);
+          default: fail('variables must be initialized with a single value', v.name.pos);
+        }
+
       for (k in keyframes) 
-        keyframes.push(k);
+        keyframes.push({
+          name: k.name,
+          frames: [for (f in k.frames) {
+            pos: f.pos,
+            properties: props(f.properties)
+          }]
+        });
 
       for (f in fonts)
-        fonts.push(f);
+        fonts.push(props(f));
 
       for (q in d.mediaQueries)
         mediaQueries.push({
@@ -189,40 +222,32 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
               switch queries {
                 case []: q.conditions;
                 default: [for (outer in queries) for (inner in q.conditions) mediaAnd(outer, inner)];
-              }
+              },
+              vars
             )
         });
 
       return {
-        variables: d.variables,
-        properties: d.properties,
+        properties: props(d.properties),
         childRules: [for (c in d.childRules) {
           selector: c.selector,
-          declaration: sweep(c.declaration, selectors.concat([c.selector]), queries)
+          declaration: sweep(c.declaration, selectors.concat([c.selector]), queries, vars)
         }]
       }
     }
 
-    var ret = sweep(d, [], []);
+    var ret = sweep(d, [], [], new Map());
 
     return {
       fonts: fonts,
       keyframes: keyframes,
       mediaQueries: mediaQueries,
-      variables: ret.variables,
       properties: ret.properties,
       childRules: ret.childRules,
     }
   }  
 
-  function generateDeclaration(paths:Array<String>, d:PlainDeclaration, vars:Map<String, SingleValue>) {
-    vars = vars.copy();
-
-    for (v in d.variables)
-      switch v.value.components {
-        case [[s]]: vars.set(v.name.value, s);
-        default: fail('variables must be initialized with a single value', v.name.pos);
-      }
+  function generateDeclaration(paths:Array<String>, d:PlainDeclaration) {
 
     var ret = 
       switch d.properties {
@@ -232,7 +257,7 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
           var all = '${paths.join(',\n')} {';
         
           for (p in props)
-            all += '\n\t${p.name.value}: ${compoundValue(p.value, vars.get)}${[for (i in 0...p.value.importance) ' !important'].join('')};';
+            all += '\n\t${p.name.value}: ${compoundValue(p.value)}${[for (i in 0...p.value.importance) ' !important'].join('')};';
         
           [all +'\n}'];
       }
@@ -240,8 +265,7 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
     for (c in d.childRules) {
       var decl = generateDeclaration(
         [for (p in paths) for (o in c.selector.value) Printer.combine(' ', p, o)], 
-        c.declaration, 
-        vars
+        c.declaration
       );
       if (decl != '') ret.push(decl);
     }
@@ -339,8 +363,8 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
     }
   }
 
-  function singleValue(s, resolve)
-    return reducedValue(reduce(s, resolve).sure());
+  function singleValue(s)
+    return reducedValue(s);
 
   function reducedValue(s:SingleValue):String {
 
@@ -360,7 +384,7 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
       case VCall(name, [for (a in _) rec(a)].join(',') => args):
         '${name.value}($args)';
       default: 
-        throw 'assert';
+        throw 'assert ${s.value}';
     }
   }
 }

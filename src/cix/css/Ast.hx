@@ -79,11 +79,6 @@ typedef Property = {
 
 typedef DeclarationOf<Child:DeclarationOf<Child>> = {
   
-  final variables:ListOf<{
-    final name:StringAt;
-    final value:CompoundValue;
-  }>;
-
   final properties:ListOf<Property>;
 
   final childRules:ListOf<{
@@ -97,7 +92,12 @@ typedef PlainDeclaration = DeclarationOf<PlainDeclaration>;
 
 typedef NormalizedDeclaration = PlainDeclaration & ExtrasOf<PlainDeclaration>;
 
-typedef Declaration = DeclarationOf<Declaration> & ExtrasOf<Declaration>;
+typedef Declaration = DeclarationOf<Declaration> & ExtrasOf<Declaration> & {
+  final variables:ListOf<{
+    final name:StringAt;
+    final value:CompoundValue;
+  }>;
+}
 
 typedef ExtrasOf<Child:DeclarationOf<Child>> = {
   final fonts:ListOf<FontFace>;
