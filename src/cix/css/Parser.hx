@@ -74,7 +74,7 @@ class Parser extends SelectorParser {
               VCall(strAt(val), parseList(parseSingleValue.bind(), { sep: ',', end: ')' }));
             else
               if (interpolated) VVar(val);
-              else VString(val);
+              else VAtom(val);
         })
     );
 
@@ -201,9 +201,16 @@ class Parser extends SelectorParser {
 
   function parseKeyFrames():Keyframes
     return {
-      name:
-        if (upNext(QUOTE)) located(parseString)
-        else strAt(ident(true).sure()),
+      name: {
+        function quoted(isQuoted, s):AnimationName
+          return {
+            value: s.value,
+            pos: s.pos,
+            quoted: isQuoted
+          }
+        if (upNext(QUOTE)) quoted(true, located(parseString))
+        else quoted(false, strAt(ident(true).sure()));
+      },
       frames:
         parseList(
           () -> {

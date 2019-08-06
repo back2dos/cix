@@ -151,10 +151,12 @@ class Normalizer<Error> {
         d:Declaration, 
         selectors:ListOf<Located<Selector>>, 
         queries:ListOf<FullMediaCondition>,
-        vars:Map<String, SingleValue>
+        vars:Map<String, SingleValue>,
+        animations:Map<String, String>
       ):PlainDeclaration {
 
       vars = vars.copy();
+      animations = animations.copy();
 
       var resolve = id -> vars.get(id);
 
@@ -168,7 +170,18 @@ class Normalizer<Error> {
             var c = p.value;
             {
               importance: c.importance,
-              components: [for (values in c.components) [for (v in values) reduce(v)]]
+              components: 
+                if (p.name.value == 'animation-name') switch c.components {
+                  case [[{ pos: pos, value: VAtom(name) }]] if (name != 'none'): 
+                    switch animations[name] {
+                      case null: fail('unknown animation $name', pos);
+                      case v: [[{ pos: pos, value: VAtom(v) }]];
+                    }
+                  case [[_]]: c.components;
+                  default: fail('animation-name must have exactly one value', p.name.pos);
+                }
+                else if (p.name.value == 'animation') fail('animation shortcut current not supported', p.name.pos)
+                else [for (values in c.components) [for (v in values) reduce(v)]]
             }
           }
         }];
@@ -179,9 +192,18 @@ class Normalizer<Error> {
           default: fail('variables must be initialized with a single value', v.name.pos);
         }
 
+      function animation(a:AnimationName):AnimationName
+        return 
+          if (a.quoted) a;
+          else {
+            quoted: false,
+            pos: a.pos,
+            value: animations[a.value] = a.value + Std.random(1 << 20) // TODO: make customizable
+          }
+
       for (k in d.keyframes) 
         keyframes.push({
-          name: k.name,
+          name: animation(k.name),
           frames: [for (f in k.frames) {
             pos: f.pos,
             properties: props(f.properties)
@@ -202,7 +224,7 @@ class Normalizer<Error> {
 
         mediaQueries.push({
           conditions: queries,
-          declaration: sweep(q.declaration, selectors, queries, vars)
+          declaration: sweep(q.declaration, selectors, queries, vars, animations)
         });
       }
 
@@ -210,12 +232,12 @@ class Normalizer<Error> {
         properties: props(d.properties),
         childRules: [for (c in d.childRules) {
           selector: c.selector,
-          declaration: sweep(c.declaration, selectors.concat([c.selector]), queries, vars)
+          declaration: sweep(c.declaration, selectors.concat([c.selector]), queries, vars, animations)
         }]
       }
     }
 
-    var ret = sweep(d, [], [], new Map());
+    var ret = sweep(d, [], [], new Map(), new Map());
 
     return {
       fonts: fonts,

@@ -132,8 +132,10 @@ enum abstract MediaType(String) to String {
 
 typedef FontFace = ListOf<Property>;
 
+typedef AnimationName = StringAt & { final quoted:Bool; };
+
 typedef Keyframes = {
-  final name:StringAt;
+  final name:AnimationName;
   final frames:ListOf<{
     final pos:Int;
     final properties:ListOf<Property>;
