@@ -10,6 +10,9 @@ class Run {
 			transition: all .25s;
 			&:hover {
 				background: red;
+				@media (max-width: 500px) {
+					font-size: 2em;
+				}
 			}
 			@font-face {
 				src: url("/fonts/OpenSans-Regular-webfont.woff2") format("woff2"),

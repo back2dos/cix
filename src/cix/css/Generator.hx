@@ -1,25 +1,40 @@
 package cix.css;
 
-#if macro
 import cix.css.Ast;
 import tink.csss.Selector;
 import haxe.macro.*;
+
+#if macro
 import haxe.macro.Expr;
 import haxe.macro.Type;
+#end
 import tink.parse.*;
 
 using StringTools;
+#if macro
 using haxe.io.Path;
 using haxe.macro.Tools;
 using tink.MacroApi;
+#end
 using tink.CoreApi;
 
-class Generator<Error, Result> {//TODO: should work outside macro mode
+typedef OwnerType = 
+  #if macro 
+    BaseType 
+  #else 
+    {
+      final pack:Array<String>;
+      final name:String;
+    }  
+  #end
+;
+
+class Generator<Result> {//TODO: should work outside macro mode
   
   #if macro 
   static var initialized = false;
   static final META = ':cix-output';
-  static public function resultExpr(localType:BaseType, pos:Position, className:String, css:String) 
+  static public function resultExpr(localType:OwnerType, pos:Position, className:String, css:String) 
     return {
       #if cix_output
         localType.meta.add(META, [macro @:pos(pos) $v{css}], pos);
@@ -80,12 +95,12 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
   @:persistent static var counter = 0;
 
   static public var namespace = 
-    switch Context.definedValue('cix-namespace') {
+    switch #if macro Context.definedValue #else Compiler.getDefine #end ('cix-namespace') {
       case null | '': 'cix';
       case v: v; 
     }
 
-  static function typeName(b:BaseType)
+  static function typeName(b:OwnerType)
     return b.pack.concat([b.name]).join('.');
 
   static dynamic public function showSource(src:DeclarationSource)
@@ -109,10 +124,8 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
   static public dynamic function join(parts:Array<String>)
     return parts.join('–');// this is an en dash (U+2013) to avoid collision with the more likely minus
 
-  static public dynamic function generateClass(src:DeclarationSource, decl:Declaration):String
+  static public dynamic function generateClass(src:DeclarationSource, decl:NormalizedDeclaration):String
     return join(strip([namespace, showSource(src), '${counter++}']));
-
-  var reporter:Reporter<Position, Error>;
   
   function compoundValue(v:CompoundValue) 
     return [
@@ -120,13 +133,10 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
         [for (single in v) singleValue(single)].join(' ')
     ].join(', ');
 
-  var getCall:(name:StringAt, reporter:Reporter<Position, Error>)->((orig:SingleValue, args:ListOf<SingleValue>)->Outcome<SingleValue, Error>);
   var generateResult:(pos:Position, className:String, css:String)->Result;
-  var makeClass:(src:DeclarationSource, decl:Declaration)->String;
+  var makeClass:(src:DeclarationSource, decl:NormalizedDeclaration)->String;
 
-  public function new(reporter, getCall, generateResult, ?makeClass) {
-    this.reporter = reporter;
-    this.getCall = getCall;
+  public function new(generateResult, ?makeClass) {
     this.generateResult = generateResult;
     this.makeClass = switch makeClass {
       case null: generateClass;
@@ -134,10 +144,7 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
     }
   }
 
-  function fail(message, pos):Dynamic
-    return throw reporter.makeError(message, pos);
-
-  public function rule(src:DeclarationSource, d:Declaration) {
+  public function rule(src:DeclarationSource, d:NormalizedDeclaration) {
     var className = generateClass(src, d);
     return generateResult(
       switch src {
@@ -146,10 +153,6 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
       },
       className, 
       {
-        var d = normalize(d);
-        if (d.mediaQueries.length > 0)
-          fail('media queries currently not implemented', d.mediaQueries[0].conditions[0].pos);
-
         var ret = [];
 
         for (k in d.keyframes)
@@ -160,9 +163,25 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
         
         ret.push(generateDeclaration(['.$className'], d));
 
+        for (m in d.mediaQueries) 
+          ret.push('@media ${mediaQuery(m.conditions)} {\n' + generateDeclaration(['.$className'], d, '\t') + '\n}');
+
         ret.join('\n\n');
       }
     );
+  }
+
+  function mediaQuery(conditions:ListOf<FullMediaCondition>) {
+    function cond(c:MediaCondition)
+      return switch c {
+        case And(a, b): '${cond(a)} and ${cond(b)}';
+        case Feature(name, val): '(${name.value}: ${singleValue(val)})';
+        case Type(t): t;
+      }
+    return [for (c in conditions) 
+      (if (c.negated) 'not' else '')
+      + cond(c.value)
+    ].join(',\n');
   }
 
   function generateKeyframes(k:Keyframes)
@@ -170,102 +189,6 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
       '@keyframes ${k.name.value} {\n'
         + [for (f in k.frames) properties(() -> '${f.pos}%', f.properties, '\t').join('\n')].join('\n') 
         + '\n}';
-
-  function mediaAnd(c1:FullMediaCondition, c2:FullMediaCondition):FullMediaCondition {
-    if (c1.negated != c2.negated)
-      fail('cannot nest negated and non-negated queries', c2.pos);//probably should try to translate the query to its negative
-
-    return {
-      pos: c2.pos,
-      value: And(c1.value, c2.value),
-      negated: c2.negated
-    }
-  }  
-
-  function normalize(d:Declaration):NormalizedDeclaration {
-    //TODO: this will also have to perform variable substitution
-    var fonts:Array<FontFace> = [],
-        keyframes:Array<Keyframes> = [],
-        mediaQueries:Array<MediaQueryOf<PlainDeclaration>> = [];
-    
-    function sweep(
-        d:Declaration, 
-        selectors:ListOf<Located<Selector>>, 
-        queries:ListOf<FullMediaCondition>,
-        vars:Map<String, SingleValue>
-      ):PlainDeclaration {
-
-      vars = vars.copy();
-
-      var resolve = id -> vars.get(id);
-
-      function reduce(v)
-        return this.reduce(v, resolve).sure();
-
-      function props(raw:ListOf<Property>):ListOf<Property>
-        return [for (p in raw) {
-          name: p.name,
-          value: {
-            var c = p.value;
-            {
-              importance: c.importance,
-              components: [for (values in c.components) [for (v in values) reduce(v)]]
-            }
-          }
-        }];
-
-      for (v in d.variables)
-        switch v.value.components {//TODO: probably also forbid !important
-          case [[s]]: vars.set(v.name.value, reduce(s));
-          default: fail('variables must be initialized with a single value', v.name.pos);
-        }
-
-      for (k in d.keyframes) 
-        keyframes.push({
-          name: k.name,
-          frames: [for (f in k.frames) {
-            pos: f.pos,
-            properties: props(f.properties)
-          }]
-        });
-
-      for (f in d.fonts)
-        fonts.push(props(f));
-
-      for (q in d.mediaQueries) {
-
-        //TODO: variable substitution in q.conditions
-
-        var queries = switch queries {
-          case []: q.conditions;
-          default: [for (outer in queries) for (inner in q.conditions) mediaAnd(outer, inner)];
-        }
-
-        mediaQueries.push({
-          conditions: queries,
-          declaration: sweep(q.declaration, selectors, queries, vars)
-        });
-      }
-
-      return {
-        properties: props(d.properties),
-        childRules: [for (c in d.childRules) {
-          selector: c.selector,
-          declaration: sweep(c.declaration, selectors.concat([c.selector]), queries, vars)
-        }]
-      }
-    }
-
-    var ret = sweep(d, [], [], new Map());
-
-    return {
-      fonts: fonts,
-      keyframes: keyframes,
-      mediaQueries: mediaQueries,
-      properties: ret.properties,
-      childRules: ret.childRules,
-    }
-  }  
 
   function properties(prefix, properties:ListOf<Property>, indent = '') 
     return 
@@ -281,14 +204,15 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
           [all +'\n$indent}'];
       }
 
-  function generateDeclaration(paths:Array<String>, d:PlainDeclaration) {
+  function generateDeclaration(paths:Array<String>, d:PlainDeclaration, ?indent = '') {
 
-    var ret = properties(paths.join.bind(',\n'), d.properties);
+    var ret = properties(paths.join.bind(',\n$indent'), d.properties, indent);
 
     for (c in d.childRules) {
       var decl = generateDeclaration(
         [for (p in paths) for (o in c.selector.value) Printer.combine(' ', p, o)], 
-        c.declaration
+        c.declaration, 
+        indent
       );
       if (decl != '') ret.push(decl);
     }
@@ -296,124 +220,10 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
     return ret.join('\n\n');
   }
 
-  function map(s:SingleValue, f:SingleValue->SingleValue)
-    return f(switch s.value {
-      case VBinOp(op, lh, rh):
-        { pos: s.pos, value: VBinOp(op, f(lh), f(rh)) };
-      case VCall(name, args):
-        { pos: s.pos, value: VCall(name, [for (a in args) f(a)]) };
-      default: s;
-    });
-
-  static var CSS_BUILTINS = {
-    var list = [
-      'calc',
-
-      'url', 'format',
-      
-      'blur', 'brightness', 'contrast', 'hue-rotate', 'grayscale',
-      
-      'translate', 'translateX', 'translateY', 'translateZ', 'translate3d',
-      'rotate', 'rotateX', 'rotateY', 'rotateZ', 'rotate3d',
-      'scale', 'scaleX', 'scaleY', 'scale3d',
-      'skew', 'skewX', 'skewY', 'skew3d',
-      'perspective', 'matrix', 'matrix3d',
-    ];
-
-    [for (l in list) l => true];
-  }
-
-  function call(s, name:StringAt, args)
-    return switch name.value {
-      case CSS_BUILTINS[_] => true: Success(s);
-      default: getCall(name, reporter)(s, args);
-    }
-
-  function reduce(s:SingleValue, resolve:String->Null<SingleValue>) {
-    
-    var error = None;
-
-    function fail(msg, ?pos):Dynamic {
-      var e = reporter.makeError(msg, switch pos {
-        case null: s.pos;
-        default: pos;
-      });
-      error = Some(e);
-      throw error;
-    }
-
-    function unit(v:SingleValue)
-      return switch v.value {
-        case VNumeric(_, u): u;
-        case VCall({ value: 'calc' }, _): MixedLength;
-        default: fail('expected numeric value but got ${reducedValue(v)}', v.pos);
-      }  
-
-    function val(v:SingleValue)
-      return switch v.value {
-        case VNumeric(v, _): v;
-        default: throw 'assert';
-      }
-
-    function unpack(v:SingleValue)
-      return switch v.value { 
-        case VCall({ value: 'calc' }, [v]): unpack(v);
-        default: v;
-      }
-
-    return 
-      try 
-        Success(map(s, s -> switch s.value {
-          case VVar(name):
-            switch resolve(name) {
-              case null: fail('unknown identifier $name', s.pos);
-              case v: v;
-            }
-          case VBinOp(op, lh, rh):
-            var unit = switch [op, unit(lh), unit(rh)] {
-              case [OpMult, u, null] | [OpMult, null, u]: u;
-              case [OpMult, a, b]: fail('cannot multiply $a and $b', s.pos);
-              case [OpDiv, u, null]: u;
-              case [OpDiv, _, u]: fail('divisor must be unitless, but has $u', s.pos);
-              case [OpAdd | OpSubt, a, b] if (a == b): a;
-              case [OpAdd | OpSubt, _.getKind() => a, _.getKind() => b]: 
-                if (a == b) MixedLength;//todo: try avoiding nested calcs
-                else fail('cannot perform $op on $a and $b', s.pos);
-            }
-            {
-              pos: s.pos,
-              value:
-                if (unit == MixedLength)
-                  VCall({ value: 'calc', pos: s.pos }, [s]);
-                else {
-                  var lh = val(lh),
-                      rh = val(rh);
-
-                  VNumeric(switch op {
-                    case OpMult: lh * rh;
-                    case OpDiv: lh / rh;
-                    case OpAdd: lh + rh;
-                    case OpSubt: lh - rh;
-                  }, unit);
-                }
-            }
-          case VCall(name, args):
-            call(s, name, args).sure();
-          default: s;
-        }))
-    catch (e:Dynamic) switch error {
-      case Some(e): Failure(e);
-      case None: throw e;
-    }
-  }
-
-  function singleValue(s)
-    return reducedValue(s);
-
-  function reducedValue(s:SingleValue):String {
+  static public function singleValue(s:SingleValue):String {
 
     function rec(s)
-      return reducedValue(s);
+      return singleValue(s);
 
     return switch s.value {
       case VNumeric(value, unit): 
@@ -436,9 +246,9 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
 }
 
 enum DeclarationSource {
-  InlineRule(pos:Position, localType:BaseType, localMethod:Null<String>);
-  NamedRule(name:StringAt, localType:BaseType, localMethod:Null<String>);
-  Field(name:StringAt, cls:BaseType);
+  InlineRule(pos:Position, localType:OwnerType, localMethod:Null<String>);
+  NamedRule(name:StringAt, localType:OwnerType, localMethod:Null<String>);
+  Field(name:StringAt, cls:OwnerType);
 }
 
 private class Printer extends tink.csss.Printer {
@@ -467,4 +277,3 @@ private class Printer extends tink.csss.Printer {
       else ret;
   }
 }
-#end

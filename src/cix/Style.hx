@@ -4,7 +4,7 @@ package cix;
 import haxe.macro.Type;
 import haxe.macro.Context.*;
 
-import cix.css.Generator;
+import cix.css.*;
 using tink.CoreApi;
 #end
 
@@ -18,28 +18,31 @@ class Style {
     }
   #end
   macro static public function rule(e) {
-    var rule = cix.css.Parser.parseDecl(e).sure(),
-        t = localType();
+    var rule = Parser.parseDecl(e).sure(),
+        t = localType(),
+        reporter = tink.parse.Reporter.expr(getPosInfos(e.pos).file);
 
-    var gen = new Generator(
-      tink.parse.Reporter.expr(getPosInfos(e.pos).file),
-      (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos)),
-      Generator.resultExpr.bind(t)
-    );
-
-    return gen.rule(InlineRule(e.pos, t, getLocalMethod()), rule);
+    return 
+      new Generator(Generator.resultExpr.bind(t))
+      .rule(
+        InlineRule(e.pos, t, getLocalMethod()), 
+        new Normalizer(
+          reporter,
+          (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos))
+        ).normalize(rule)
+      );
   }
 
-  macro static public function sheet(e) {
-    var rule = cix.css.Parser.parseDecl(e).sure(),
-        t = localType();
+  // macro static public function sheet(e) {
+  //   var rule = cix.css.Parser.parseDecl(e).sure(),
+  //       t = localType();
 
-    var gen = new Generator(
-      tink.parse.Reporter.expr(getPosInfos(e.pos).file),
-      (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos)),
-      Generator.resultExpr.bind(t)
-    );
+  //   var gen = new Generator(
+  //     tink.parse.Reporter.expr(getPosInfos(e.pos).file),
+  //     (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos)),
+  //     Generator.resultExpr.bind(t)
+  //   );
 
-    return gen.rule(InlineRule(e.pos, t, getLocalMethod()), rule);
-  }  
+  //   return gen.rule(InlineRule(e.pos, t, getLocalMethod()), rule);
+  // }  
 }
