@@ -31,6 +31,7 @@ class Run {
 					}
 					&+& {
 						margin: 2em;
+						animation: foo .5s linear 1s infinite alternate;
 					}
 				}
 			}

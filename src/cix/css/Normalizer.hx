@@ -141,6 +141,18 @@ class Normalizer<Error> {
     }
   }    
 
+  static var ANIM_PROPS = [
+    for (name in [
+      'none',
+      'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out',
+      'infinite',
+      'normal', 'reverse', 'alternate', 'alternate-reverse',
+      'inherit', // not sure this makes sense
+      'forwards', 'backwards', 'both',
+      'paused', 'running'
+    ]) name => true
+  ];
+
   public function normalize(d:Declaration):NormalizedDeclaration {
     //TODO: this will also have to perform variable substitution
     var fonts:Array<FontFace> = [],
@@ -163,6 +175,13 @@ class Normalizer<Error> {
       function reduce(v)
         return this.reduce(v, resolve).sure();
 
+      function getAnimation(name, pos)
+        return 
+          switch animations[name] {
+            case null: fail('unknown animation $name', pos);
+            case v: { pos: pos, value: VAtom(v) };
+          }      
+
       function props(raw:ListOf<Property>):ListOf<Property>
         return [for (p in raw) {
           name: p.name,
@@ -173,15 +192,21 @@ class Normalizer<Error> {
               components: 
                 if (p.name.value == 'animation-name') switch c.components {
                   case [[{ pos: pos, value: VAtom(name) }]] if (name != 'none'): 
-                    switch animations[name] {
-                      case null: fail('unknown animation $name', pos);
-                      case v: [[{ pos: pos, value: VAtom(v) }]];
-                    }
+                    [[getAnimation(name, pos)]];
                   case [[_]]: c.components;
                   default: fail('animation-name must have exactly one value', p.name.pos);
                 }
-                else if (p.name.value == 'animation') fail('animation shortcut current not supported', p.name.pos)
-                else [for (values in c.components) [for (v in values) reduce(v)]]
+                else {
+                  var reduce = 
+                    if (p.name.value == 'animation') 
+                      s -> switch reduce(s) {
+                        case v = { value: VAtom(name) } if (!ANIM_PROPS.exists(name)): 
+                          getAnimation(name, v.pos);
+                        case v: v;
+                      }
+                    else reduce;
+                  [for (values in c.components) [for (v in values) reduce(v)]];
+                }
             }
           }
         }];
