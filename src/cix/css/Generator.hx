@@ -149,10 +149,27 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
         var d = normalize(d);
         if (d.mediaQueries.length > 0)
           fail('media queries currently not implemented', d.mediaQueries[0].conditions[0].pos);
-        generateDeclaration(['.$className'], d);
+
+        var ret = [];
+
+        for (k in d.keyframes)
+          ret.push(generateKeyframes(k));
+
+        for (f in d.fonts)
+          ret = ret.concat(properties(() -> '@font-face', f));
+        
+        ret.push(generateDeclaration(['.$className'], d));
+
+        ret.join('\n\n');
       }
     );
   }
+
+  function generateKeyframes(k:Keyframes)
+    return 
+      '@keyframes ${k.name.value} {\n'
+        + [for (f in k.frames) properties(() -> '${f.pos}%', f.properties, '\t').join('\n')].join('\n') 
+        + '\n}';
 
   function mediaAnd(c1:FullMediaCondition, c2:FullMediaCondition):FullMediaCondition {
     if (c1.negated != c2.negated)
@@ -177,30 +194,33 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
         queries:ListOf<FullMediaCondition>,
         vars:Map<String, SingleValue>
       ):PlainDeclaration {
-      
+
       vars = vars.copy();
 
       var resolve = id -> vars.get(id);
 
-      function reduce(c:CompoundValue):CompoundValue
-        return {
-          importance: c.importance,
-          components: [for (values in c.components) [for (v in values) this.reduce(v, resolve).sure()]]
-        }
+      function reduce(v)
+        return this.reduce(v, resolve).sure();
 
       function props(raw:ListOf<Property>):ListOf<Property>
         return [for (p in raw) {
           name: p.name,
-          value: reduce(p.value)
+          value: {
+            var c = p.value;
+            {
+              importance: c.importance,
+              components: [for (values in c.components) [for (v in values) reduce(v)]]
+            }
+          }
         }];
 
       for (v in d.variables)
-        switch reduce(v.value).components {//TODO: probably also forbid !important
-          case [[s]]: vars.set(v.name.value, s);
+        switch v.value.components {//TODO: probably also forbid !important
+          case [[s]]: vars.set(v.name.value, reduce(s));
           default: fail('variables must be initialized with a single value', v.name.pos);
         }
 
-      for (k in keyframes) 
+      for (k in d.keyframes) 
         keyframes.push({
           name: k.name,
           frames: [for (f in k.frames) {
@@ -209,23 +229,23 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
           }]
         });
 
-      for (f in fonts)
+      for (f in d.fonts)
         fonts.push(props(f));
 
-      for (q in d.mediaQueries)
+      for (q in d.mediaQueries) {
+
+        //TODO: variable substitution in q.conditions
+
+        var queries = switch queries {
+          case []: q.conditions;
+          default: [for (outer in queries) for (inner in q.conditions) mediaAnd(outer, inner)];
+        }
+
         mediaQueries.push({
-          conditions: q.conditions,
-          declaration: 
-            sweep(
-              q.declaration, 
-              selectors, 
-              switch queries {
-                case []: q.conditions;
-                default: [for (outer in queries) for (inner in q.conditions) mediaAnd(outer, inner)];
-              },
-              vars
-            )
+          conditions: queries,
+          declaration: sweep(q.declaration, selectors, queries, vars)
         });
+      }
 
       return {
         properties: props(d.properties),
@@ -247,20 +267,23 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
     }
   }  
 
-  function generateDeclaration(paths:Array<String>, d:PlainDeclaration) {
-
-    var ret = 
-      switch d.properties {
+  function properties(prefix, properties:ListOf<Property>, indent = '') 
+    return 
+      switch properties {
         case []: [];
         case props:
 
-          var all = '${paths.join(',\n')} {';
+          var all = '$indent${prefix()} {';
         
           for (p in props)
-            all += '\n\t${p.name.value}: ${compoundValue(p.value)}${[for (i in 0...p.value.importance) ' !important'].join('')};';
+            all += '\n$indent\t${p.name.value}: ${compoundValue(p.value)}${[for (i in 0...p.value.importance) ' !important'].join('')};';
         
-          [all +'\n}'];
+          [all +'\n$indent}'];
       }
+
+  function generateDeclaration(paths:Array<String>, d:PlainDeclaration) {
+
+    var ret = properties(paths.join.bind(',\n'), d.properties);
 
     for (c in d.childRules) {
       var decl = generateDeclaration(
@@ -282,8 +305,29 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
       default: s;
     });
 
+  static var CSS_BUILTINS = {
+    var list = [
+      'calc',
+
+      'url', 'format',
+      
+      'blur', 'brightness', 'contrast', 'hue-rotate', 'grayscale',
+      
+      'translate', 'translateX', 'translateY', 'translateZ', 'translate3d',
+      'rotate', 'rotateX', 'rotateY', 'rotateZ', 'rotate3d',
+      'scale', 'scaleX', 'scaleY', 'scale3d',
+      'skew', 'skewX', 'skewY', 'skew3d',
+      'perspective', 'matrix', 'matrix3d',
+    ];
+
+    [for (l in list) l => true];
+  }
+
   function call(s, name:StringAt, args)
-    return getCall(name, reporter)(s, args);
+    return switch name.value {
+      case CSS_BUILTINS[_] => true: Success(s);
+      default: getCall(name, reporter)(s, args);
+    }
 
   function reduce(s:SingleValue, resolve:String->Null<SingleValue>) {
     
@@ -377,8 +421,10 @@ class Generator<Error, Result> {//TODO: should work outside macro mode
           case null: '';
           case v: v;
         }
-      case VString(value):
+      case VAtom(value):
         value;
+      case VString(value):
+        '"' + value.replace('"', '\\"') + '"';
       case VBinOp(op, rec(_) => lh, rec(_) => rh):
         '$lh $op $rh';
       case VCall(name, [for (a in _) rec(a)].join(',') => args):

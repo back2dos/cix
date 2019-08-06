@@ -1,6 +1,6 @@
 package ;
 
-import A;
+// import A;
 
 class Run {
   static function main() {
@@ -11,8 +11,21 @@ class Run {
 			&:hover {
 				background: red;
 			}
+			@font-face {
+				src: url("/fonts/OpenSans-Regular-webfont.woff2") format("woff2"),
+						url("/fonts/OpenSans-Regular-webfont.woff") format("woff");				
+				font-family: "Open Sans";
+			}
 			foo, bar {
 				beep, boop {
+					@keyframes foo {
+						0%: {
+							transform: none;
+						}
+						100%: {
+							transform: scale(1.25);
+						}
+					}
 					&+& {
 						margin: 2em;
 					}

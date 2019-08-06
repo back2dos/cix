@@ -32,11 +32,13 @@ class Parser extends SelectorParser {
   }
 
   function parseUnit()
-    return switch ident(true) {
-      case Success(n):
-        cast n.toString();
-      default: null;
-    }
+    return 
+      if (allowHere('%')) Pct;
+      else switch ident(true) {
+        case Success(n):// this is not very safe
+          cast n.toString();
+        default: null;
+      }
 
   function parseNumber(num, sign) {
     if (allowHere('.'))
@@ -96,12 +98,12 @@ class Parser extends SelectorParser {
     var components = [cur],
         importance = 0;
 
-    function isEnd()
-      return allow(';');
+    function isDone()
+      return upNext(Char(';}')) || pos >= max;
 
     while (true) {
 
-      if (isEnd())
+      if (isDone())
         switch cur {
           case []: die('empty value');
           default: break;
@@ -213,7 +215,7 @@ class Parser extends SelectorParser {
               default:
                 parseInt().sure() + expect('%');
             },
-            properties: parseProperties()
+            properties: expect(':') + parseProperties()
           },
           { start: '{', end: '}' }
         )
@@ -233,47 +235,56 @@ class Parser extends SelectorParser {
         fonts = [],
         mediaQueries = [];
 
-    function parseParts()
-      if (allowHere('@')) {
-        var kw = ident(true).sure();
-        switch kw.toString() {
-          case known = 'charset'
-                     | 'import'
-                     | 'namespace'
-                     | 'supports'
-                     | 'document'
-                     | 'page'
-                     | 'viewport'
-                     | 'counter-style'
-                     | 'font-feature-values':
-          case 'media':
-            mediaQueries.push(parseMediaQuery());
-          case 'font-face':
-            fonts.push(parseProperties());
-          case 'keyframes':
-            keyframes.push(parseKeyFrames());
-          case 'state':
-            die('no support for states yet');
-          case unknown: reject(unknown, 'unknown at-rule $unknown');
+    function parsePart()
+      return
+        if (allowHere('@')) {
+          var kw = ident(true).sure();
+          switch kw.toString() {
+            case known = 'charset' | 'import' | 'namespace' | 'supports' | 'document' | 'page' | 'viewport' | 'counter-style' | 'font-feature-values':
+              die('no support for $known yet');
+            case 'media':
+              mediaQueries.push(parseMediaQuery());
+            case 'font-face':
+              fonts.push(parseProperties());
+            case 'keyframes':
+              keyframes.push(parseKeyFrames());
+            case 'state':
+              die('no support for states yet');
+            case unknown: reject(unknown, 'unknown at-rule $unknown');
+          }
+          true;
         }
-      }
-      else if (allowHere('$'))
-        variables.push(namedVal());
-      else
-        switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
-          case Success(s):
-            if (error != null)
-              throw error;
-            childRules.push({
-              selector: s,
-              declaration: expect('{') + parseDeclaration() + expect('}'),
-            });
-          default:
-            properties.push(parseProperty());
+        else if (allowHere('$')) {
+          variables.push(namedVal());
+          false;
         }
+        else
+          switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
+            case Success(s):
+              if (error != null)
+                throw error;
+              childRules.push({
+                selector: s,
+                declaration: expect('{') + parseDeclaration() + expect('}'),
+              });
+              true;
+            default:
+              properties.push(parseProperty());
+              false;
+          }
 
-    while (!upNext(BR_CLOSE) && pos < max)
-      parseParts();
+    function isDone()
+      return upNext(BR_CLOSE) || pos >= max;
+
+    while (true) {
+      if (isDone()) break;
+      var isBlock = parsePart();
+      if (!isBlock) {
+        var semi = allow(';');
+        if (isDone()) break;
+        else if (!semi) die('expected ; or }');
+      }
+    }
 
     return {
       mediaQueries: mediaQueries,

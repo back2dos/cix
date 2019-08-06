@@ -15,6 +15,7 @@ typedef SingleValue = Located<ValueKind>;
 enum ValueKind {
   VNumeric(value:Float, ?unit:Unit);
   VVar(name:String);
+  VAtom(name:String);
   VColor(h:Float, v:Float, l:Float, o:Float);
   VString(value:String);
   VBinOp(op:BinOp, lh:SingleValue, rh:SingleValue);
