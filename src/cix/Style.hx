@@ -16,33 +16,24 @@ class Style {
       case TAbstract(_.get() => t, _): t;
       default: throw 'assert';
     }
-  #end
-  macro static public function rule(e) {
+
+  static public var printer = new Printer();
+
+  static function exec(e, process) {
     var rule = Parser.parseDecl(e).sure(),
-        t = localType(),
         reporter = tink.parse.Reporter.expr(getPosInfos(e.pos).file);
 
-    return 
-      new Generator(Generator.resultExpr.bind(t))
-      .rule(
-        InlineRule(e.pos, t, getLocalMethod()), 
-        new Normalizer(
-          reporter,
-          (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos))
-        ).normalize(rule)
-      );
+    return process( 
+      new Normalizer(
+        reporter,
+        (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos))
+      ).normalize(rule)
+    );
   }
+  #end
+  macro static public function rule(e) 
+    return exec(e, decl -> Generator.rule(localType(), e.pos, decl, getLocalMethod(), printer));
 
-  // macro static public function sheet(e) {
-  //   var rule = cix.css.Parser.parseDecl(e).sure(),
-  //       t = localType();
-
-  //   var gen = new Generator(
-  //     tink.parse.Reporter.expr(getPosInfos(e.pos).file),
-  //     (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos)),
-  //     Generator.resultExpr.bind(t)
-  //   );
-
-  //   return gen.rule(InlineRule(e.pos, t, getLocalMethod()), rule);
-  // }  
+  // macro static public function sheet(e) 
+  //   return exec(e, (t, decl) -> Generator.sheet(localType(), e.pos, decl, getLocalMethod(), printer));
 }

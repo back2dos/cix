@@ -69,7 +69,7 @@ class Normalizer<Error> {
       return switch v.value {
         case VNumeric(_, u): u;
         case VCall({ value: 'calc' }, _): MixedLength;
-        default: fail('expected numeric value but got ${Generator.singleValue(v)}', v.pos);
+        default: fail('expected numeric value but got ${Printer.singleValue(v)}', v.pos);
       }  
 
     function val(v:SingleValue)
