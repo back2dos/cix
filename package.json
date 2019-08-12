@@ -3,5 +3,8 @@
   "scripts": {
     "postinstall": "lix download",
     "test": "lix run travix interp"
+  },
+  "dependencies": {
+    "lix": "^15.5.3"
   }
 }
