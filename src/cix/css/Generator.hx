@@ -16,7 +16,72 @@ using tink.MacroApi;
 using tink.CoreApi;
 
 class Generator {
-  
+  static function localType():BaseType
+    return switch Context.getLocalType().reduce() {
+      case TInst(_.get() => t, _): t;
+      case TAbstract(_.get() => t, _): t;
+      default: throw 'assert';
+    }
+
+  static public var printer = new Printer();
+
+  static function normalize(decl, pos)
+    return new Normalizer(
+      tink.parse.Reporter.expr(Context.getPosInfos(pos).file),
+      (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos))
+    ).normalize(decl);
+
+  static function localMethod()
+    return Context.getLocalMethod();//TODO: check that it's non-inline
+
+  static public function makeRule(e) {
+    var decl = normalize(Parser.parseDecl(e).sure(), e.pos),
+        t = localType();
+    
+    var cl = makeClass(InlineRule(e.pos, t, localMethod()), decl);
+    return resultExpr(t, e.pos, cl, printer.print(cl, decl));
+  }
+
+  static public function makeSheet(e) {
+    var sheet = Parser.parseDecl(e).sure(),
+        t = localType(),
+        localMethod = localMethod();
+
+    if (sheet.properties.length > 0)
+      sheet.properties[0].name.pos.error('no properties allowed on top level');
+
+    if (sheet.mediaQueries.length > 0)
+      sheet.mediaQueries[0].conditions[0].pos.error('no properties allowed on top level');
+
+    sheet = {
+      properties: sheet.properties,
+      keyframes: sheet.keyframes,
+      variables: sheet.variables,
+      fonts: sheet.fonts,
+      mediaQueries: sheet.mediaQueries,
+      childRules: [
+        for (c in sheet.childRules)
+          switch c.selector.value {
+            case [[
+                { tag: name, id: null, classes: [] } 
+              | { tag: '' | '*' | null, classes: [name], id: null }
+              | { classes: [], tag: '' | '*' | null, id: name }
+              ]]: 
+                {
+                  declaration: c.declaration,
+                  selector: {
+                    pos: c.selector.pos,
+                    value: [[{ classes: [makeClass(NamedRule({ pos: c.selector.pos, value: name }, t, localMethod), null)] }]]
+                  }
+                }
+            default: c.selector.pos.error('only simple selectors allowed here');
+          }
+      ],
+    };
+
+    return macro null;
+  }
+
   static var initialized = false;
   static final META = ':cix-output';
   static function resultExpr(localType:BaseType, pos:Position, className:String, css:String) 
@@ -110,11 +175,6 @@ class Generator {
 
   static public dynamic function makeClass(src:DeclarationSource, decl:NormalizedDeclaration):String
     return join(strip([namespace, showSource(src), '${counter++}']));
-
-  static public function rule(owner:BaseType, pos:Position, decl:NormalizedDeclaration, localMethod:String, p:Printer) {
-    var cl = makeClass(InlineRule(pos, owner, localMethod), decl);
-    return resultExpr(owner, pos, cl, p.print(cl, decl));
-  }
 
 }
 
