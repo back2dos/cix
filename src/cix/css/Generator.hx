@@ -31,21 +31,42 @@ class Generator {
       (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos))
     ).normalize(decl);
 
-  static function localMethod()
-    return Context.getLocalMethod();//TODO: check that it's non-inline
+  static function localMethod(pos:Position) {
+    var ret = Context.getLocalMethod();
+
+    if (!isEmbedded) {
+      var cl = Context.getLocalClass().get();
+      switch [cl.findField(ret, true), cl.findField(ret, false)] {
+        case [v, null] | [null, v]: 
+          switch v.kind {
+            case FMethod(MethInline) | FVar(AccInline, _):
+              var pos = 
+                switch [Context.getPosInfos(Context.currentPos()), Context.getPosInfos(pos)] {
+                  case [p1, p2] if (p1.file == p2.file && p1.min < p2.min && p1.max > p2.max):
+                    Context.makePosition({ file: p1.file, min: p1.min, max: p2.min });
+                  default: pos;
+                }
+              pos.error('cannot declare styles in inline fields/methods in embedded mode');
+            default:
+          }
+        default: throw 'assert';
+      }
+    }
+    return ret;
+  }
 
   static public function makeRule(e) {
     var decl = normalize(Parser.parseDecl(e).sure(), e.pos),
         t = localType();
     
-    var cl = makeClass(InlineRule(e.pos, t, localMethod()), decl);
+    var cl = makeClass(InlineRule(e.pos, t, localMethod(e.pos)), decl);
     return resultExpr(t, e.pos, cl, printer.print(cl, decl));
   }
 
   static public function makeSheet(e) {
     var sheet = Parser.parseDecl(e).sure(),
         t = localType(),
-        localMethod = localMethod();
+        localMethod = localMethod(e.pos);
 
     if (sheet.properties.length > 0)
       sheet.properties[0].name.pos.error('no properties allowed on top level');
@@ -82,8 +103,9 @@ class Generator {
     return macro null;
   }
 
-  static var initialized = false;
   static final META = ':cix-output';
+  static final isEmbedded = #if cix_output false #else true #end;
+  static var initialized = false;
   static function resultExpr(localType:BaseType, pos:Position, className:String, css:String) 
     return {
       #if cix_output
