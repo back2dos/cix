@@ -57,10 +57,10 @@ class Generator {
 
   static public function makeRule(e) {
     var decl = normalize(Parser.parseDecl(e).sure(), e.pos),
-        t = localType();
-    
-    var cl = makeClass(InlineRule(e.pos, t, localMethod(e.pos)), decl);
-    return resultExpr(t, e.pos, cl, printer.print(cl, decl));
+        src = InlineRule(e.pos, localType(), localMethod(e.pos));
+
+    var cl = makeClass(src, decl);
+    return macro @:pos(e.pos) ${export(src, [{ field: { value: 'css', pos: e.pos }, className: cl, css: printer.print(cl, decl) }])}.css;
   }
 
   static public function makeSheet(e) {
@@ -106,12 +106,19 @@ class Generator {
   static final META = ':cix-output';
   static final isEmbedded = #if cix_output false #else true #end;
   static var initialized = false;
-  static function resultExpr(localType:BaseType, pos:Position, className:String, css:String) 
+  static function export(src:DeclarationSource, classes:ListOf<{ final field:StringAt; final className:String; final css:String; }>) 
     return {
-      #if cix_output
-        localType.meta.add(META, [macro @:pos(pos) $v{css}], pos);
-        if (!initialized) {
-          initialized = true;
+      var pos = 
+        switch src {
+          case InlineRule(pos, _) 
+              | NamedRule({ pos: pos }, _) 
+              | Field({ pos: pos}, _): 
+                pos;
+        };
+        
+      if (!initialized) {
+        initialized = true;
+        #if cix_output
           Context.onGenerate(types -> {
             Context.onAfterGenerate(() -> {
 
@@ -128,39 +135,65 @@ class Generator {
               var first = true;
               for (t in types)
                 switch t {
-                  case TInst(_.get().meta => m, _)
-                      | TEnum(_.get().meta => m, _)
-                      | TAbstract(_.get().meta => m, _) if (m.has(META) && m.has(':used')):
-                    for (tag in m.extract(META))
-                      for (e in tag.params)
-                        switch e.expr {
-                          case EConst(CString(s)):
-                            if (first)
-                              first = false;
-                            else 
-                              s = '\n\n\n$s';
-                            out.writeString(s);
-                          default: throw 'assert';
-                        }
+                  case TInst(_.get() => cl, _) if (cl.meta.has(META) && cl.meta.has(':used')):
+                    for (f in cl.fields.get())
+                      for (tag in f.meta.extract(META))
+                        for (e in tag.params)
+                          switch e.expr {
+                            case EConst(CString(s)):
+                              if (first)
+                                first = false;
+                              else 
+                                s = '\n\n\n$s';
+                              out.writeString(s);
+                            default: throw 'assert';
+                          }
                   default:
                 }
 
               out.close();
             });
           });
-        }
-        macro @:pos(pos) ($v{className}:tink.domspec.ClassName);
-      #else
-        if (!initialized) {
-          initialized = true;
+        #else
           switch Context.getType('cix.css.Runtime').reduce() {
             case TInst(_.get().meta.has(':notSupported') => true, _):
               pos.error('Embedded mode not supported on this platform. See https://github.com/back2dos/cix#css-generation');
             default:
           }
+        #end
+      }
+          
+      var name = 'Cix${counter++}'; // TODO: should be a separate counter
+
+      var cls = {
+        var p = name.asTypePath();
+        macro class $name {
+          function new() {}
+          static public final inst = new $p();
         }
-        macro @:pos(pos) cix.css.Declarations.add($v{className}, () -> $v{css});
-      #end
+      }
+
+      cls.meta.push({ name: META, params: [], pos: pos });
+      
+      for (c in classes)
+        cls.fields.push({
+          name: c.field.value,
+          pos: c.field.pos,
+          access: [APublic, AFinal],
+          kind: FVar(
+            macro : tink.domspec.ClassName, 
+            #if cix_output 
+              macro $v{c.className} 
+            #else 
+              macro cix.css.Declarations.add($v{c.className}, () -> $v{c.css})
+            #end  
+          ),
+          meta: [#if cix_output { name: META, params: [macro $v{c.css}], pos: c.field.pos } #end],
+        });
+
+      Context.defineType(cls);
+
+      macro @:pos(pos) $i{name}.inst;
     }
 
   @:persistent static var counter = 0;
