@@ -238,6 +238,10 @@ class Printer {
         '$lh$hSpace$op$hSpace$rh';
       case VCall(name, [for (a in _) rec(a)].join(',$hSpace') => args):
         '${name.value}($args)';
+      case VColor(r, g, b, 1):
+        '#${r.hex(2)}${g.hex(2)}${b.hex(2)}';
+      case VColor(r, g, b, a):
+        'rgba($r, $g, $b, $a)';
       default: 
         throw 'assert ${s.value}';
     }

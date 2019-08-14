@@ -55,6 +55,22 @@ class Parser extends SelectorParser {
       else
         fallback();
 
+  static final HEX = DIGIT || 'abcdefABCDEF';
+  
+  function parseColor() {
+    var slice = readWhile(HEX);
+
+    var s = slice.toString();
+    switch s.length {
+      case 3: 
+        s = [for (i in 0...s.length) s.charAt(i) + s.charAt(i)].join('');
+      case 6:
+      default: reject(slice, 'hex literal must have 3 or 6 digits');
+    }
+    var i = Std.parseInt('0x$s');
+    return VColor(i >> 16, (i >> 8) & 0xFF, i & 0xFF, 1);
+  }
+
   function parseSingleValue(?interpolated):SingleValue
     return located(
       function () return
@@ -64,6 +80,7 @@ class Parser extends SelectorParser {
         else if (allowHere('$'))
           if (interpolated) die('recursive interpolation not allowed');
           else VVar(ident(true).sure());
+        else if (allowHere('#')) parseColor();
         else if (is(QUOTE)) VString(parseString());
         else if (allowHere('-'))
           tryParseNumber(-1, die.bind('number expected'));
