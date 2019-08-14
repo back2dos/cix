@@ -81,7 +81,7 @@ class Generator {
 
     var cl = makeClass(InlineRule(e.pos, localType(), localMethod(e.pos)), decl);
 
-    return macro @:pos(e.pos) ${export(e.pos, [{ field: { value: 'css', pos: e.pos }, className: cl, css: printer.print(cl, decl) }])}.css;
+    return macro @:pos(e.pos) ${export(e.pos, [{ field: { value: 'css', pos: e.pos }, className: cl, css: printer.print('.$cl', decl) }])}.css;
   }
 
   static function parse(e:Expr)
@@ -103,7 +103,7 @@ class Generator {
       {
         field: rule.name,
         className: cl,
-        css: printer.print(cl, rule.decl)
+        css: printer.print('.$cl', rule.decl)
       }
     }]);
   }
@@ -121,7 +121,7 @@ class Generator {
 
               var out = 
                 sys.io.File.write(
-                  switch Context.definedValue('cix-output').trim() {
+                  switch Context.definedValue('cix_output').trim() {
                     case asIs = _.charAt(0) => '.' | '/':
                       asIs;
                     case relToOut:
