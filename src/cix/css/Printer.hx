@@ -176,7 +176,7 @@ class Printer {
       ret.push(printKeyframes(k));
 
     for (f in d.fonts)
-      ret = ret.concat(properties(() -> '@font-face', f));
+      ret = ret.concat(properties(() -> '@font-face', f.value));
     
     ret.push(plainDeclaration(paths, d));
 

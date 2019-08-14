@@ -130,7 +130,7 @@ enum abstract MediaType(String) to String {
   var Speech = 'speech';
 }
 
-typedef FontFace = ListOf<Property>;
+typedef FontFace = Located<ListOf<Property>>;
 
 typedef AnimationName = StringAt & { final quoted:Bool; };
 

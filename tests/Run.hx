@@ -3,6 +3,12 @@ package ;
 // import A;
 
 class Run {
+	
+  static final bar = cix.Style.sheet('
+		table {
+			border: none;
+		}
+	');
   static final foo = cix.Style.rule('
 		$margin: 10px;
 		margin-top: ${margin + 2em + 10vh};
@@ -37,5 +43,6 @@ class Run {
 	');
 
 	static function main() {
+		trace(bar.table);
 	}	
 }

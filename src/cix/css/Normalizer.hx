@@ -8,9 +8,9 @@ using tink.CoreApi;
 
 class Normalizer<Error> {
 
-  var reporter:Reporter<Position, Error>;  
+  var reporter:Reporter<Position, Error>;
   var getCall:(name:StringAt, reporter:Reporter<Position, Error>)->((orig:SingleValue, args:ListOf<SingleValue>)->Outcome<SingleValue, Error>);
-  
+
   function fail(message, pos):Dynamic
     return throw reporter.makeError(message, pos);
 
@@ -28,9 +28,9 @@ class Normalizer<Error> {
       'calc',
 
       'url', 'format',
-      
+
       'blur', 'brightness', 'contrast', 'hue-rotate', 'grayscale',
-      
+
       'translate', 'translateX', 'translateY', 'translateZ', 'translate3d',
       'rotate', 'rotateX', 'rotateY', 'rotateZ', 'rotate3d',
       'scale', 'scaleX', 'scaleY', 'scale3d',
@@ -53,7 +53,7 @@ class Normalizer<Error> {
     }
 
   function reduce(s:SingleValue, resolve:String->Null<SingleValue>) {
-    
+
     var error = None;
 
     function fail(msg, ?pos):Dynamic {
@@ -70,7 +70,7 @@ class Normalizer<Error> {
         case VNumeric(_, u): u;
         case VCall({ value: 'calc' }, _): MixedLength;
         default: fail('expected numeric value but got ${Printer.singleValue(v)}', v.pos);
-      }  
+      }
 
     function val(v:SingleValue)
       return switch v.value {
@@ -79,13 +79,13 @@ class Normalizer<Error> {
       }
 
     function unpack(v:SingleValue)
-      return switch v.value { 
+      return switch v.value {
         case VCall({ value: 'calc' }, [v]): unpack(v);
         default: v;
       }
 
-    return 
-      try 
+    return
+      try
         Success(map(s, s -> switch s.value {
           case VVar(name):
             switch resolve(name) {
@@ -99,7 +99,7 @@ class Normalizer<Error> {
               case [OpDiv, u, null]: u;
               case [OpDiv, _, u]: fail('divisor must be unitless, but has $u', s.pos);
               case [OpAdd | OpSubt, a, b] if (a == b): a;
-              case [OpAdd | OpSubt, _.getKind() => a, _.getKind() => b]: 
+              case [OpAdd | OpSubt, _.getKind() => a, _.getKind() => b]:
                 if (a == b) MixedLength;//todo: try avoiding nested calcs
                 else fail('cannot perform $op on $a and $b', s.pos);
             }
@@ -139,7 +139,13 @@ class Normalizer<Error> {
       value: And(c1.value, c2.value),
       negated: c2.negated
     }
-  }    
+  }
+
+  function mapMedia(m:MediaCondition, f)
+    return switch m {
+      case And(a, b): f(And(mapMedia(a, f), mapMedia(b, f)));
+      default: f(m);
+    }
 
   static var ANIM_PROPS = [
     for (name in [
@@ -153,15 +159,45 @@ class Normalizer<Error> {
     ]) name => true
   ];
 
-  public function normalize(d:Declaration):NormalizedDeclaration {
+  public function normalizeSheet(sheet:Declaration) {
+    if (sheet.properties.length > 0)
+      fail('no properties allowed on top level', sheet.properties[0].name.pos);
+
+    if (sheet.mediaQueries.length > 0) // TODO: flip order, i.e. move media-queries "into" selectors
+      fail('top level media queries not supported', sheet.mediaQueries[0].conditions[0].pos);
+
+    if (sheet.keyframes.length > 0)
+      fail('top level keyframes not supported', sheet.keyframes[0].name.pos);
+
+    if (sheet.fonts.length > 0)
+      fail('top level fonts not supported', sheet.fonts[0].pos);
+
+    return [
+      for (c in sheet.childRules)
+        switch c.selector.value {
+          case [[
+              { tag: name, id: null, classes: [] } 
+            | { tag: '' | '*' | null, classes: [name], id: null }
+            | { classes: [], tag: '' | '*' | null, id: name }
+            ]]: 
+              {
+                name: { value: name, pos: c.selector.pos },
+                decl: normalizeRule(c.declaration)
+              }
+          default: 
+            fail('only simple selectors allowed here', c.selector.pos);
+        }
+    ];
+  }
+  public function normalizeRule(d:Declaration):NormalizedDeclaration {
     //TODO: this will also have to perform variable substitution
     var fonts:Array<FontFace> = [],
         keyframes:Array<Keyframes> = [],
         mediaQueries:Array<MediaQueryOf<PlainDeclaration>> = [];
-    
+
     function sweep(
-        d:Declaration, 
-        selectors:ListOf<Located<Selector>>, 
+        d:Declaration,
+        selectors:ListOf<Located<Selector>>,
         queries:ListOf<FullMediaCondition>,
         vars:Map<String, SingleValue>,
         animations:Map<String, String>
@@ -176,11 +212,11 @@ class Normalizer<Error> {
         return this.reduce(v, resolve).sure();
 
       function getAnimation(name, pos)
-        return 
+        return
           switch animations[name] {
             case null: fail('unknown animation $name', pos);
             case v: { pos: pos, value: VAtom(v) };
-          }      
+          }
 
       function props(raw:ListOf<Property>):ListOf<Property>
         return [for (p in raw) {
@@ -189,18 +225,18 @@ class Normalizer<Error> {
             var c = p.value;
             {
               importance: c.importance,
-              components: 
+              components:
                 if (p.name.value == 'animation-name') switch c.components {
-                  case [[{ pos: pos, value: VAtom(name) }]] if (name != 'none'): 
+                  case [[{ pos: pos, value: VAtom(name) }]] if (name != 'none'):
                     [[getAnimation(name, pos)]];
                   case [[_]]: c.components;
                   default: fail('animation-name must have exactly one value', p.name.pos);
                 }
                 else {
-                  var reduce = 
-                    if (p.name.value == 'animation') 
+                  var reduce =
+                    if (p.name.value == 'animation')
                       s -> switch reduce(s) {
-                        case v = { value: VAtom(name) } if (!ANIM_PROPS.exists(name)): 
+                        case v = { value: VAtom(name) } if (!ANIM_PROPS.exists(name)):
                           getAnimation(name, v.pos);
                         case v: v;
                       }
@@ -218,7 +254,7 @@ class Normalizer<Error> {
         }
 
       function animation(a:AnimationName):AnimationName
-        return 
+        return
           if (a.quoted) a;
           else {
             quoted: false,
@@ -226,7 +262,7 @@ class Normalizer<Error> {
             value: animations[a.value] = a.value + Std.random(1 << 20) // TODO: make customizable
           }
 
-      for (k in d.keyframes) 
+      for (k in d.keyframes)
         keyframes.push({
           name: animation(k.name),
           frames: [for (f in k.frames) {
@@ -236,15 +272,25 @@ class Normalizer<Error> {
         });
 
       for (f in d.fonts)
-        fonts.push(props(f));
+        fonts.push({
+          pos: f.pos,
+          value: props(f.value)
+        });
 
       for (q in d.mediaQueries) {
 
-        //TODO: variable substitution in q.conditions
+        var resolved:ListOf<FullMediaCondition> = [for (c in q.conditions) {
+          negated: c.negated,
+          pos: c.pos,
+          value: mapMedia(c.value, m -> switch m {
+            case Feature(n, v): Feature(n, reduce(v));
+            default: m;
+          })
+        }];
 
         var queries = switch queries {
-          case []: q.conditions;
-          default: [for (outer in queries) for (inner in q.conditions) mediaAnd(outer, inner)];
+          case []: resolved;
+          default: [for (outer in queries) for (inner in resolved) mediaAnd(outer, inner)];
         }
 
         mediaQueries.push({
@@ -271,5 +317,5 @@ class Normalizer<Error> {
       properties: ret.properties,
       childRules: ret.childRules,
     }
-  }  
+  }
 }

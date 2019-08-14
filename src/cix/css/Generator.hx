@@ -25,11 +25,11 @@ class Generator {
 
   static public var printer = new Printer();
 
-  static function normalize(decl, pos)
+  static function normalizer(pos)
     return new Normalizer(
       tink.parse.Reporter.expr(Context.getPosInfos(pos).file),
       (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos))
-    ).normalize(decl);
+    );
 
   static function localMethod(pos:Position) {
     var ret = Context.getLocalMethod();
@@ -56,66 +56,34 @@ class Generator {
   }
 
   static public function makeRule(e) {
-    var decl = normalize(Parser.parseDecl(e).sure(), e.pos),
-        src = InlineRule(e.pos, localType(), localMethod(e.pos));
+    var decl = normalizer(e.pos).normalizeRule(Parser.parseDecl(e).sure());
 
-    var cl = makeClass(src, decl);
-    return macro @:pos(e.pos) ${export(src, [{ field: { value: 'css', pos: e.pos }, className: cl, css: printer.print(cl, decl) }])}.css;
+    var cl = makeClass(InlineRule(e.pos, localType(), localMethod(e.pos)), decl);
+
+    return macro @:pos(e.pos) ${export(e.pos, [{ field: { value: 'css', pos: e.pos }, className: cl, css: printer.print(cl, decl) }])}.css;
   }
 
   static public function makeSheet(e) {
-    var sheet = Parser.parseDecl(e).sure(),
-        t = localType(),
-        localMethod = localMethod(e.pos);
+    var sheet = normalizer(e.pos).normalizeSheet(Parser.parseDecl(e).sure());
 
-    if (sheet.properties.length > 0)
-      sheet.properties[0].name.pos.error('no properties allowed on top level');
-
-    if (sheet.mediaQueries.length > 0)
-      sheet.mediaQueries[0].conditions[0].pos.error('no properties allowed on top level');
-
-    sheet = {
-      properties: sheet.properties,
-      keyframes: sheet.keyframes,
-      variables: sheet.variables,
-      fonts: sheet.fonts,
-      mediaQueries: sheet.mediaQueries,
-      childRules: [
-        for (c in sheet.childRules)
-          switch c.selector.value {
-            case [[
-                { tag: name, id: null, classes: [] } 
-              | { tag: '' | '*' | null, classes: [name], id: null }
-              | { classes: [], tag: '' | '*' | null, id: name }
-              ]]: 
-                {
-                  declaration: c.declaration,
-                  selector: {
-                    pos: c.selector.pos,
-                    value: [[{ classes: [makeClass(NamedRule({ pos: c.selector.pos, value: name }, t, localMethod), null)] }]]
-                  }
-                }
-            default: c.selector.pos.error('only simple selectors allowed here');
-          }
-      ],
-    };
-
-    return macro null;
+    var type = localType(),
+        method = localMethod(e.pos);
+    
+    return export(e.pos, [for (rule in sheet) {
+      var cl = makeClass(NamedRule(rule.name, type, method), rule.decl);
+      {
+        field: rule.name,
+        className: cl,
+        css: printer.print(cl, rule.decl)
+      }
+    }]);
   }
 
   static final META = ':cix-output';
   static final isEmbedded = #if cix_output false #else true #end;
   static var initialized = false;
-  static function export(src:DeclarationSource, classes:ListOf<{ final field:StringAt; final className:String; final css:String; }>) 
+  static function export(pos:Position, classes:ListOf<{ final field:StringAt; final className:String; final css:String; }>) 
     return {
-      var pos = 
-        switch src {
-          case InlineRule(pos, _) 
-              | NamedRule({ pos: pos }, _) 
-              | Field({ pos: pos}, _): 
-                pos;
-        };
-        
       if (!initialized) {
         initialized = true;
         #if cix_output

@@ -252,7 +252,7 @@ class Parser extends SelectorParser {
             case 'media':
               mediaQueries.push(parseMediaQuery());
             case 'font-face':
-              fonts.push(parseProperties());
+              fonts.push({ pos: makePos(kw.start, kw.end), value: parseProperties() });
             case 'keyframes':
               keyframes.push(parseKeyFrames());
             case 'state':
