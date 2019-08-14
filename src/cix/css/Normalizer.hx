@@ -30,6 +30,8 @@ class Normalizer<Error> {
 
       'url', 'format',
 
+      'rgb', 'rgba', 'hsl', 'hsla',
+
       'blur', 'brightness', 'contrast', 'hue-rotate', 'grayscale',
 
       'translate', 'translateX', 'translateY', 'translateZ', 'translate3d',
