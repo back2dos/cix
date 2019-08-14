@@ -161,3 +161,11 @@ In this mode, cix will output the CSS into a standalone file that you may use as
 - `-D cix-output=/absolute/path/file.css`
 - `-D cix-output=./path/relative/to/cwd/file.css`
 - `-D cix-output=path/relative/to/compiler-output/file.css`
+
+# Advantages
+
+While it's obviously stupid to bring yet another css preprocessor into the world, there are a few things about cix that make it worthwhile:
+
+1. **Easier builds with less dependencies**: Compile your Haxe code and your styles fall out all the same. No need to download less/sass and all the dependencies that come with them. No need to set up build scripts, or to worry about the right styles being included/excluded for compilation.
+2. **Full DCE support**: Any classes you're not using in code that is kept after DCE are pruned, meaning you don't ship dead styles. As a corollary: should you compile only part of your project, e.g. while working on a single component for faster iteration, then only the CSS for that is compiled, cutting down on CSS compilation times as well.
+3. **Use Haxe values in styles**: Any cix styles may reference static final/inline variables, meaning that you when you wish to share a value between style and logic (e.g. an animation duration), you can put it into a static variable and use it from your styles.
