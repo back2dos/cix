@@ -1,6 +1,20 @@
 # cix: Css In Haxe
 
-This library aims at creating (semi-)scoped CSS styles for Haxe projects. In essence, it consumes styles and produces CSS class names, which you can then apply to elements. A CSS classname is defined like so:
+This library aims at creating (semi-)scoped CSS styles for Haxe projects. 
+
+Sample usage:
+
+```haxe
+var big = cix.Style.rule('
+  font-size: 2em;
+  font-weight: bold;
+  padding: 1em;
+');
+
+document.body.innerHTML = '<button class="$big">Big Button!</button>';
+```
+
+In essence, it offers macros that consume style declarations and produce CSS class names, which you can then apply to elements. A CSS classname is defined like so:
 
 ## Class Names
 
@@ -65,6 +79,7 @@ The first macro creates a single `ClassName`, while the second creates an object
 
 ## Rule Syntax
 
+Various kinds of syntax are supported by cix in order to cause as much pain and confusion as possible. It's advisable to mix them erratically to maximize hardship.
 
 ### Sassy syntax
 
@@ -129,7 +144,7 @@ css('
 ')
 ```
 
-You should avoid mixing syntax in this manner. It's mostly meant to easy copy-pasting styles from one syntax into another. 
+Mixing syntax in this manner is a great way to make the lives of your colleages miserable. There is one other use case though: easy copy-pasting of styles from one syntax into another, during a refactoring that will of course be followed up by a second step that unfies syntax.
 
 # CSS generation
 
