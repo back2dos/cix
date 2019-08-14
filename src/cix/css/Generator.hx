@@ -28,7 +28,28 @@ class Generator {
   static function normalizer(pos)
     return new Normalizer(
       tink.parse.Reporter.expr(Context.getPosInfos(pos).file),
-      (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos))
+      (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos)),
+      s -> switch Context.typeExpr(macro @:pos(s.pos) $i{s.value}) {
+        case { expr: TField(_, fa) }:
+          switch fa {
+            case FStatic(_, _.get() => f) if (f.isFinal || f.kind.match(FVar(AccInline, _))): 
+              switch f.expr() {
+                case { pos: pos, expr: TConst(TString(v)) }: 
+                  switch Parser.parseVal({ pos: pos, expr: EConst(CString(v)) }) {
+                    case Success({ components: [[v]], importance: 0 }): v;
+                    case Success(_): 
+                      s.pos.error('${s.value} should be a single css value');
+                    case Failure(e): 
+                      s.pos.error('${s.value} is not a css value because ${e.message}');
+                  }
+                default: 
+                  s.pos.error('${s.value} is not a string constant');
+              }
+            default: s.pos.error('can only access final or inline static fields');
+          }
+        case { expr: TLocal(_) }: s.pos.error('cannot access local variables');
+        default: null;
+      }
     );
 
   static function localMethod(pos:Position) {

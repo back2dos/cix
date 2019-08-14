@@ -15,9 +15,13 @@ class HxParser {
 
   static function tryProp(e:Expr):Outcome<Property, Error>
     return switch e {
-      case macro $name = $value: Success(prop(name, value));
+      case macro $name = $value: 
+        if (value.expr.match(EBlock(_) | EObjectDecl(_)))
+          name.reject('Did you mean `${name.toString()} => { ... }`?');
+        Success(prop(name, value));
       default: e.pos.makeFailure('property expected');
     }
+
   static function props(e:Expr):ListOf<Property>
     return switch e.expr {
       case EBlock(exprs):
@@ -28,7 +32,7 @@ class HxParser {
   static function val(value:Expr):CompoundValue
     return switch value {
       case { expr: EConst(CString(s)) }: Parser.parseVal(value).sure();
-      case { expr: EConst(CIdent(s)) }: { importance: 0, components: [[{ pos: value.pos, value: VAtom(s) }]] };
+      case { expr: EConst(CIdent(s)) }: { importance: 0, components: [[{ pos: value.pos, value: VVar(s) }]] };
       default: value.reject('invalid expression');
     }
 

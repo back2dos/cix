@@ -4,13 +4,16 @@ package ;
 
 class Run {
 	
+	static final DURATION = '25s';
+
   static final bar = cix.Style.sheet({
+		var color = 'red';
 		table => {
 			border = 'none !important';
-			var color = 'red';
 			div => {
 				padding = '2em';
 				background = color;
+				transition = 'all $DURATION';
 			}
 			'&:hover' => {
 				background = color;
@@ -18,6 +21,9 @@ class Run {
 					background = 'blue';
 				}
 			}			
+		}
+		div => {
+			background = color;
 		}
 	});
   static final foo = cix.Style.rule('
@@ -55,5 +61,6 @@ class Run {
 
 	static function main() {
 		trace(bar.table);
+		trace(bar.div);
 	}	
 }

@@ -9,6 +9,7 @@ using tink.CoreApi;
 class Normalizer<Error> {
 
   var reporter:Reporter<Position, Error>;
+  var resolver:StringAt->Null<SingleValue>;
   var getCall:(name:StringAt, reporter:Reporter<Position, Error>)->((orig:SingleValue, args:ListOf<SingleValue>)->Outcome<SingleValue, Error>);
 
   function fail(message, pos):Dynamic
@@ -41,9 +42,10 @@ class Normalizer<Error> {
     [for (l in list) l => true];
   }
 
-  public function new(reporter, getCall) {
+  public function new(reporter, getCall, resolver) {
     this.reporter = reporter;
     this.getCall = getCall;
+    this.resolver = resolver;
   }
 
   function call(s, name:StringAt, args)
@@ -89,7 +91,11 @@ class Normalizer<Error> {
         Success(map(s, s -> switch s.value {
           case VVar(name):
             switch resolve(name) {
-              case null: fail('unknown identifier $name', s.pos);
+              case null: 
+                switch resolver({ value: name, pos: s.pos }) {
+                  case null: fail('unknown identifier $name', s.pos);
+                  case v: v;
+                }
               case v: v;
             }
           case VBinOp(op, lh, rh):
@@ -180,9 +186,17 @@ class Normalizer<Error> {
             | { tag: '' | '*' | null, classes: [name], id: null }
             | { classes: [] | null, tag: '' | '*' | null, id: name }
             ]]: 
+              var d = c.declaration;
               {
                 name: { value: name, pos: c.selector.pos },
-                decl: normalizeRule(c.declaration)
+                decl: normalizeRule({
+                  variables: sheet.variables.concat(d.variables),
+                  properties: sheet.properties,
+                  keyframes: sheet.keyframes,
+                  fonts: sheet.fonts,
+                  mediaQueries: sheet.mediaQueries,
+                  childRules: sheet.childRules
+                }),
               }
           default: 
             fail('only simple selectors allowed here', c.selector.pos);
