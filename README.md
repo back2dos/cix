@@ -122,14 +122,14 @@ css('
   }  
   &:hover ${{
     background = $color;
-    div => '{
+    div => '
       background: blue;
-    }'
+    '
   }}
 ')
 ```
 
-You should avoid mixing syntax in this manner. It's mostly meant to easy copy-pasting styles from one syntax into another. Please note that in a haxy rule set, the distinction between a value and a sassy sub-rule is made by looking whether the first non-white-space character is a `{` or not. This is relatively fragile.
+You should avoid mixing syntax in this manner. It's mostly meant to easy copy-pasting styles from one syntax into another. 
 
 # CSS generation
 

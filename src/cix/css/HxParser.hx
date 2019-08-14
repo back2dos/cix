@@ -115,7 +115,10 @@ class HxParser {
                   pos: s.pos,
                   value: selector(s)
                 },
-                declaration: parse(rules)
+                declaration: switch rules.expr {
+                  case EConst(CString(_)): Parser.parseDecl(rules).sure();
+                  default: parse(rules);
+                }
               });
             case tryProp(_) => Success(p): properties.push(p);
             default: e.reject('invalid syntax');
