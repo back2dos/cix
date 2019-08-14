@@ -13,7 +13,8 @@
 	"version": "0.1.0",
 	"url": "https://github.com/back2dos/cix",
 	"dependencies": {
-		"tink_parse": "",
-		"tink_macro": ""
+		"tink_csss": "",
+		"tink_macro": "",
+		"tink_domspec": ""
 	}
 }
