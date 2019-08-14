@@ -118,7 +118,6 @@ class Parser extends SelectorParser {
             while (allow('!'))
               importance++ + expect('important');
 
-            expect(';');
             break;
         }
 
@@ -311,16 +310,23 @@ class Parser extends SelectorParser {
     return Vendored('invalid');
   }
 
-  static public function parseDecl(e:Expr):Outcome<Declaration, Error>
+  #if macro
+  static function withParser<T>(e:Expr, f:Parser->T):Outcome<T, Error>
     return switch e.expr {
       case EConst(CString(s)):
         var pos:Position = e.pos;
         var p = new Parser(s, tink.parse.Reporter.expr(pos.file), pos.min + 1);
-        try Success(p.parseDeclaration())
+        try Success(f(p))
         catch (e:Error) Failure(e)
         catch (e:Dynamic) Failure(new Error(Std.string(e), pos));
       default:
         Failure(new Error('string constant expected', e.pos));
     }
 
+  static public function parseDecl(e:Expr):Outcome<Declaration, Error>
+    return withParser(e, p -> p.parseDeclaration());
+
+  static public function parseVal(e:Expr):Outcome<CompoundValue, Error>
+    return withParser(e, p -> p.parseValue());
+  #end
 }

@@ -176,9 +176,9 @@ class Normalizer<Error> {
       for (c in sheet.childRules)
         switch c.selector.value {
           case [[
-              { tag: name, id: null, classes: [] } 
+              { tag: name, id: null, classes: [] | null } 
             | { tag: '' | '*' | null, classes: [name], id: null }
-            | { classes: [], tag: '' | '*' | null, id: name }
+            | { classes: [] | null, tag: '' | '*' | null, id: name }
             ]]: 
               {
                 name: { value: name, pos: c.selector.pos },

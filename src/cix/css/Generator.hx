@@ -56,15 +56,23 @@ class Generator {
   }
 
   static public function makeRule(e) {
-    var decl = normalizer(e.pos).normalizeRule(Parser.parseDecl(e).sure());
+    var decl = normalizer(e.pos).normalizeRule(parse(e));
 
     var cl = makeClass(InlineRule(e.pos, localType(), localMethod(e.pos)), decl);
 
     return macro @:pos(e.pos) ${export(e.pos, [{ field: { value: 'css', pos: e.pos }, className: cl, css: printer.print(cl, decl) }])}.css;
   }
 
+  static function parse(e:Expr)
+    return switch e {
+      case macro @css $e: parse(e);
+      case { expr: EConst(CString(v)) }: Parser.parseDecl(e).sure();
+      case HxParser.parses(_) => true: HxParser.parse(e);
+      default: e.reject('expected string literal or block or object literal');
+    } 
+
   static public function makeSheet(e) {
-    var sheet = normalizer(e.pos).normalizeSheet(Parser.parseDecl(e).sure());
+    var sheet = normalizer(e.pos).normalizeSheet(parse(e));
 
     var type = localType(),
         method = localMethod(e.pos);

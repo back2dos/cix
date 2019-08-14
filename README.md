@@ -87,26 +87,26 @@ css('
 ')
 ```
 
-### Haxy syntax (not implemented yet)
+### Haxy syntax
 
 ```haxe
 css({
   border = 'none !important';
   var color = 'red';
-  div = {
-    padding: '2em',
-    background: color,
+  div => {
+    padding = '2em';
+    background = color;
   }
-  '&:hover' = {
-    background: color,
-    div: {
-      background: blue,
+  '&:hover' => {
+    background = color;
+    div => {
+      background = 'blue';
     }
   }
 })
 ```
 
-You can use blocks or object literals for rule sets. Note that on object literals, there's no way to define variables.
+To be documented ...
 
 ### Mixing both
 
@@ -121,8 +121,8 @@ css('
     background: $color;
   }  
   &:hover ${{
-    background: $color,
-    div: '{
+    background = $color;
+    div => '{
       background: blue;
     }'
   }}

@@ -4,11 +4,22 @@ package ;
 
 class Run {
 	
-  static final bar = cix.Style.sheet('
-		table {
-			border: none;
+  static final bar = cix.Style.sheet({
+		table => {
+			border = 'none !important';
+			var color = 'red';
+			div => {
+				padding = '2em';
+				background = color;
+			}
+			'&:hover' => {
+				background = color;
+				div => {
+					background = 'blue';
+				}
+			}			
 		}
-	');
+	});
   static final foo = cix.Style.rule('
 		$margin: 10px;
 		margin-top: ${margin + 2em + 10vh};
