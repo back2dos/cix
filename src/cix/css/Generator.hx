@@ -197,12 +197,12 @@ class Generator {
 
   static public var namespace = 
     switch Context.definedValue('cix-namespace') {
-      case null | '': 'cix';
+      case null | '': 'χ';
       case v: v; 
     }
 
   static function typeName(b:BaseType)
-    return b.pack.concat([b.name]).join('.');
+    return join(b.pack.concat([b.name]));
 
   static dynamic public function showSource(src:DeclarationSource)
     return
@@ -226,7 +226,7 @@ class Generator {
     return parts.join('–');// this is an en dash (U+2013) to avoid collision with the more likely minus
 
   static public dynamic function makeClass(src:DeclarationSource, decl:NormalizedDeclaration):String
-    return join(strip([namespace, showSource(src), '${counter++}']));
+    return namespace + join(strip([showSource(src), '${counter++}']));
 
 }
 
