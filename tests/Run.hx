@@ -32,7 +32,7 @@ class Run {
 		transition: all .25s;
 		$color: yellow;
 		&:hover {
-			background: mix(blue, $color);
+			background: mix(blue, mix(red, $color));
 			@media (max-width: 500px) {
 				font-size: 2em;
 			}

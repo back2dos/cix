@@ -31,18 +31,18 @@ class Generator {
       default: Failure('Color expected');
     }
 
-  static function valToFloat(v:SingleValue)
+  static function valToRatio(v:SingleValue)
     return switch v.value {
       case VNumeric(f, null): Success(f);
       case VNumeric(f, Pct): Success(f - 100);
-      default: Failure('Color expected');
+      default: Failure('Ratio expected');
     }    
 
   static function normalizer(pos)
     return new Normalizer(
       tink.parse.Reporter.expr(Context.getPosInfos(pos).file),
       {
-        mix: CallResolver.makeCall3(valToCol, valToCol, valToFloat, (c1, c2, f) -> Success(VColor(c1.mix(c2, f))), .5)
+        mix: CallResolver.makeCall3(valToCol, valToCol, valToRatio, (c1, c2, f) -> Success(VColor(c1.mix(c2, f))), .5)
       },
       s -> switch Context.typeExpr(macro @:pos(s.pos) $i{s.value}) {
         case { expr: TField(_, fa) }:

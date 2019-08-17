@@ -71,7 +71,7 @@ class Normalizer<Error> {
         }
     }
 
-  function reduce(s:SingleValue, resolve:String->Null<SingleValue>) {
+  function reduce(s:SingleValue, resolve:String->Null<SingleValue>):Outcome<SingleValue, Error> {
 
     var error = None;
 
@@ -144,7 +144,7 @@ class Normalizer<Error> {
                 }
             }
           case VCall(name, args):
-            call(s, name, args).sure();
+            call(s, name, [for (a in args) reduce(a, resolve).sure()]).sure();
           default: s;
         }))
     catch (e:Dynamic) switch error {
