@@ -30,8 +30,9 @@ class Run {
 		$margin: 10px;
 		margin-top: ${margin + 2em + 10vh};
 		transition: all .25s;
+		$color: yellow;
 		&:hover {
-			background: red;
+			background: mix(blue, $color);
 			@media (max-width: 500px) {
 				font-size: 2em;
 			}
@@ -62,5 +63,6 @@ class Run {
 	static function main() {
 		trace(bar.table);
 		trace(bar.div);
+		trace(foo);
 	}	
 }

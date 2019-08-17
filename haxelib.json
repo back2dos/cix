@@ -15,6 +15,7 @@
 	"dependencies": {
 		"tink_csss": "",
 		"tink_macro": "",
-		"tink_domspec": ""
+		"tink_domspec": "",
+		"tink_color": ""
 	}
 }

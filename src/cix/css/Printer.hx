@@ -125,10 +125,10 @@ class Printer {
         '$lh$hSpace$op$hSpace$rh';
       case VCall(name, [for (a in _) rec(a)].join(',$hSpace') => args):
         '${name.value}($args)';
-      case VColor(r, g, b, 1):
-        '#${r.hex(2)}${g.hex(2)}${b.hex(2)}';
-      case VColor(r, g, b, a):
-        'rgba($r, $g, $b, $a)';
+      case VColor(c) if (c.get(ALPHA) == 0xFF):
+        '#${c.get(RED)}${c.get(GREEN)}${c.get(BLUE)}'; // TODO: try generating short form
+      case VColor(c):
+        'rgba(${c.get(RED)}, ${c.get(GREEN)}, ${c.get(BLUE)}, ${c.get(ALPHA) / 0xFF})';
       default: 
         throw 'assert ${s.value}';
     }
@@ -136,28 +136,39 @@ class Printer {
 }
 
 private class SelectorPrinter extends tink.csss.Printer {
+  
   var path:String;
-  var found:Bool = false;
+
   function new(space, path) {
     super(space);
     this.path = path;
   }
 
+  static function hasAmp(option:SelectorOption) {
+    for (s in option)
+      if (s.tag == '&') return true;
+    return false;
+  }
+
   static public function combine(space:String, path:String, option:SelectorOption) {
-    var p = new SelectorPrinter(space, path);
+
+    var p = new SelectorPrinter(space, path),
+        hasAmp = hasAmp(option);
+
     var ret = p.option(option);
     return 
-      if (p.found) ret;
+      if (hasAmp || option[0].tag == 'html') ret;
       else '$path $ret';
   }
   
   override public function part(s:SelectorPart) {
+    /*
+     * TODO: this is a bit of a nono, but for now it gets the job done.
+     * An alternative might be to replace all `tag: '&'` with `tag: path` before printing.
+     */
     var ret = super.part(s);
     return 
-      if (ret.charAt(0) == '&') {
-        found = true;
-        path + ret.substr(1);
-      }
+      if (ret.charAt(0) == '&') path + ret.substr(1);
       else ret;
   }
 }

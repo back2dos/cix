@@ -1,0 +1,3 @@
+-D tink_color=0.0.0
+# @install: lix --silent download "gh://github.com/haxetink/tink_color#750c04feea01e8ce81b05b71dbd28d54b70c2b4d" into tink_color/0.0.0/github/750c04feea01e8ce81b05b71dbd28d54b70c2b4d
+-cp ${HAXE_LIBCACHE}/tink_color/0.0.0/github/750c04feea01e8ce81b05b71dbd28d54b70c2b4d/src

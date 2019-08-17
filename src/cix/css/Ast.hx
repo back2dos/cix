@@ -16,7 +16,7 @@ enum ValueKind {
   VNumeric(value:Float, ?unit:Unit);
   VVar(name:String);
   VAtom(name:String);
-  VColor(r:Int, g:Int, b:Int, o:Float);
+  VColor(color:tink.color.Color);
   VString(value:String);
   VBinOp(op:BinOp, lh:SingleValue, rh:SingleValue);
   VCall(name:StringAt, args:ListOf<SingleValue>);

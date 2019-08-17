@@ -25,10 +25,25 @@ class Generator {
 
   static public var printer = new Printer();
 
+  static function valToCol(v:SingleValue)
+    return switch v.value {
+      case VColor(c): Success(c);
+      default: Failure('Color expected');
+    }
+
+  static function valToFloat(v:SingleValue)
+    return switch v.value {
+      case VNumeric(f, null): Success(f);
+      case VNumeric(f, Pct): Success(f - 100);
+      default: Failure('Color expected');
+    }    
+
   static function normalizer(pos)
     return new Normalizer(
       tink.parse.Reporter.expr(Context.getPosInfos(pos).file),
-      (name, reporter) -> (_, _) -> Failure(reporter.makeError('unknown method ${name.value}', name.pos)),
+      {
+        mix: CallResolver.makeCall3(valToCol, valToCol, valToFloat, (c1, c2, f) -> Success(VColor(c1.mix(c2, f))), .5)
+      },
       s -> switch Context.typeExpr(macro @:pos(s.pos) $i{s.value}) {
         case { expr: TField(_, fa) }:
           switch fa {

@@ -10,7 +10,7 @@ class Normalizer<Error> {
 
   var reporter:Reporter<Position, Error>;
   var resolver:StringAt->Null<SingleValue>;
-  var getCall:(name:StringAt, reporter:Reporter<Position, Error>)->((orig:SingleValue, args:ListOf<SingleValue>)->Outcome<SingleValue, Error>);
+  var callResolver:CallResolver;
 
   function fail(message, pos):Dynamic
     return throw reporter.makeError(message, pos);
@@ -44,16 +44,31 @@ class Normalizer<Error> {
     [for (l in list) l => true];
   }
 
-  public function new(reporter, getCall, resolver) {
+  public function new(reporter, callResolver, resolver) {
     this.reporter = reporter;
-    this.getCall = getCall;
+    this.callResolver = callResolver;
     this.resolver = resolver;
   }
+
+  var resolvedCalls = new Map();
 
   function call(s, name:StringAt, args)
     return switch name.value {
       case CSS_BUILTINS[_] => true: Success(s);
-      default: getCall(name, reporter)(s, args);
+      case call: 
+        var fn = switch resolvedCalls[call] {
+          case null: resolvedCalls[call] = callResolver.resolve(call);
+          case fn: fn;
+        }
+        
+        switch fn {
+          case Some(fn): 
+            switch fn(s, args) {
+              case Success(v): Success(v);
+              case Failure(e): Failure(reporter.makeError('${e.value} for function $call', e.pos));
+            }
+          case None: Failure(reporter.makeError('unknown method $call', name.pos));
+        }
     }
 
   function reduce(s:SingleValue, resolve:String->Null<SingleValue>) {
