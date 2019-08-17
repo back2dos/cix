@@ -14,6 +14,9 @@ class Run {
 				padding = '2em';
 				background = mix(color, invert('blue'), .5);
 				transition = 'all $DURATION';
+				var faded = fade(fade(color, '40%'), .5);
+				color= faded;
+				border = '1px solid opacity($faded, 80%)';
 			}
 			'&:hover' => {
 				background = color;

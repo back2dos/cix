@@ -128,7 +128,7 @@ class Printer {
       case VColor(c) if (c.get(ALPHA) == 0xFF):
         '#${c.get(RED)}${c.get(GREEN)}${c.get(BLUE)}'; // TODO: try generating short form
       case VColor(c):
-        'rgba(${c.get(RED)}, ${c.get(GREEN)}, ${c.get(BLUE)}, ${c.get(ALPHA) / 0xFF})';
+        'rgba(${(c.get(RED):Int)}, ${(c.get(GREEN):Int)}, ${(c.get(BLUE):Int)}, ${c.get(ALPHA) / 0xFF})';
       default: 
         throw 'assert ${s.value}';
     }

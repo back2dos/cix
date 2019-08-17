@@ -8,6 +8,7 @@ import haxe.macro.Type;
 import tink.parse.*;
 import cix.css.Ast;
 import cix.css.*;
+import tink.color.*;
 
 using StringTools;
 using haxe.io.Path;
@@ -34,7 +35,7 @@ class Generator {
   static function valToRatio(v:SingleValue)
     return switch v.value {
       case VNumeric(f, null): Success(f);
-      case VNumeric(f, Pct): Success(f - 100);
+      case VNumeric(f, Pct): Success(f / 100);
       default: Failure('Ratio expected');
     }    
 
@@ -43,7 +44,9 @@ class Generator {
       tink.parse.Reporter.expr(Context.getPosInfos(pos).file),
       {
         mix: CallResolver.makeCall3(valToCol, valToCol, valToRatio, (c1, c2, f) -> Success(VColor(c1.mix(c2, f))), .5),
-        invert: CallResolver.makeCall1(valToCol, c -> Success(VColor(c.invert())))
+        invert: CallResolver.makeCall1(valToCol, c -> Success(VColor(c.invert()))),
+        fade: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(c1.get(ALPHA) * f))))),
+        opacity: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(ChannelValue.FULL * f))))),
       },
       s -> switch Context.typeExpr(macro @:pos(s.pos) $i{s.value}) {
         case { expr: TField(_, fa) }:
