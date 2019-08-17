@@ -12,7 +12,7 @@ class Run {
 			border = 'none !important';
 			div => {
 				padding = '2em';
-				background = color;
+				background = mix(color, 'blue', .5);
 				transition = 'all $DURATION';
 			}
 			'&:hover' => {

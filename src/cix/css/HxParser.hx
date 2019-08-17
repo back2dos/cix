@@ -29,11 +29,33 @@ class HxParser {
       default: e.reject('block expected');
     }
 
+  static function singleVal(value:Expr):SingleValue
+    return {
+      pos: value.pos,
+      value: switch value {
+        case { expr: EConst(CIdent(s)) }: VVar(s);
+        case { expr: EConst(CString(s)) }: VString(s);
+        case { expr: EConst(CFloat(s) )}: VNumeric(Std.parseFloat(s)); 
+        case { expr: EConst(CInt(s) )}: VNumeric(Std.parseInt(s)); 
+        case macro $fn($a{args}): 
+          VCall(
+            { pos: fn.pos, value: fn.getIdent().sure() }, 
+            [for (a in args) switch val(a) {
+              case { importance: 0, components: [[v]] }: v;
+              default: a.reject('single css value expected');
+            }]
+          );
+        default: value.reject('invalid expression');
+      }
+    }
+      
+
   static function val(value:Expr):CompoundValue
     return switch value {
-      case { expr: EConst(CString(s)) }: Parser.parseVal(value).sure();
-      case { expr: EConst(CIdent(s)) }: { importance: 0, components: [[{ pos: value.pos, value: VVar(s) }]] };
-      default: value.reject('invalid expression');
+      case { expr: EConst(CString(s)) }: 
+        Parser.parseVal(value).sure();
+      default: 
+        { importance: 0, components: [[singleVal(value)]] };
     }
 
   static function prop(name:Expr, value:Expr):Property
