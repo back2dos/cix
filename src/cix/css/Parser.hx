@@ -159,9 +159,16 @@ class Parser extends SelectorParser {
     };
   }
 
+  static var PROP_START = tink.csss.Parser.IDENT_START || '-';
+
+  function propName()
+    return 
+      if (is(PROP_START)) strAt(readWhile(tink.csss.Parser.IDENT_CONTD));
+      else die('property name expected');
+
   function parseProperty():Property
     return {
-      name: strAt(ident().sure()) + expect(':'),
+      name: propName() + expect(':'),
       value: parseValue(),
     };
 

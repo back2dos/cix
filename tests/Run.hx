@@ -34,6 +34,7 @@ class Run {
 		margin-top: ${margin + 2em + 10vh};
 		transition: all .25s;
 		$color: yellow;
+		-webkit-blub: boink;
 		&:hover {
 			background: mix(blue, mix(red, $color));
 			@media (max-width: 500px) {
