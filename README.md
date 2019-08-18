@@ -89,8 +89,10 @@ This syntax is leaning towards sass, to the degree that it's practical.
 css('
   border: none !important;
   $color: red;
+  $thickness: 10px;
   div {
-    padding: 2em;
+    padding: ${2 * thickness};
+    margin: $thickness (2 * $thickness);
     background: $color;
   }  
   &:hover {
@@ -101,6 +103,8 @@ css('
   }
 ')
 ```
+
+This syntax is similar to sass (scss to be more exact), in that like vanilla CSS it allows regular CSS properties and at-rules (keyframes, media queries, ...) and like sass, it allows variable declarations via `$ident: <value>` syntax (variables currently may only hold a single value) and you can use those variables via `$ident` again.
 
 ### Haxy syntax
 

@@ -77,7 +77,9 @@ class Parser extends SelectorParser {
       function () return
         if (allow("${"))
           if (interpolated) die('recursive interpolation not allowed');
-          else parseComplex().value + expect('}');
+          else parseComplex(true).value + expect('}');
+        else if (allowHere('('))
+          parseComplex(interpolated).value + expect(')');
         else if (allowHere('$'))
           if (interpolated) die('recursive interpolation not allowed');
           else VVar(ident(true).sure());
@@ -99,15 +101,14 @@ class Parser extends SelectorParser {
         })
     );
 
-  function parseComplex():SingleValue
+  function parseComplex(interpolated):SingleValue
     return
-      if (allow('(')) die('parens not supported yet');
-      else parseExprNext(parseSingleValue(true));
+      parseExprNext(parseSingleValue(interpolated), interpolated);
 
-  function parseExprNext(initial:SingleValue):SingleValue {
+  function parseExprNext(initial:SingleValue, interpolated):SingleValue {
     for (op in BinOp.all)
       if (allow(op))
-        return { pos: initial.pos, value: VBinOp(op, initial, parseComplex()) };
+        return { pos: initial.pos, value: VBinOp(op, initial, parseComplex(interpolated)) };
     return initial;
   }
 

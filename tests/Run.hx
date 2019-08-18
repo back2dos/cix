@@ -32,6 +32,7 @@ class Run {
   static final foo = cix.Style.rule('
 		$margin: 10px;
 		margin-top: ${margin + 2em + 10vh};
+		margin-right: ($margin + 2em + 10vh);
 		transition: all .25s;
 		$color: yellow;
 		-webkit-blub: boink;
@@ -45,6 +46,15 @@ class Run {
 			src: url("/fonts/OpenSans-Regular-webfont.woff2") format("woff2"),
 					 url("/fonts/OpenSans-Regular-webfont.woff") format("woff");				
 			font-family: "Open Sans";
+		}
+		div {
+			$color: red;
+			$thickness: 10px;
+			div {
+				padding: ${2 * thickness};
+				margin: $thickness (2 * $thickness);
+				background: $color;
+			}  			
 		}
 		foo, bar {
 			beep, boop {
