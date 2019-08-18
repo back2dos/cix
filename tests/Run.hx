@@ -10,9 +10,12 @@ class Run {
 		var color = 'red';
 		table => {
 			border = 'none !important';
-			div => {
+			div.hoho[foo=bar] > zrt >> bar ... haha + flump => {
 				padding = '2em';
 				background = mix(color, invert('blue'), .5);
+				$.hoho => {
+					color = 'yellow';
+				}
 				transition = 'all $DURATION';
 				var faded = fade(fade(color, '40%'), .5);
 				color= faded;
@@ -23,7 +26,10 @@ class Run {
 				div => {
 					background = 'blue';
 				}
-			}			
+			}
+			$(focus) => {
+				outline = '1px solid red';
+			}		
 		}
 		div => {
 			background = color;

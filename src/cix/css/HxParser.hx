@@ -152,21 +152,129 @@ class HxParser {
     return ret;
   }
 
-  static function selector(e:Expr)
-    return switch e.expr {
-      case EConst(CString(s)):
-        @:privateAccess // TODO: this should not be necessary
-          new SelectorParser(
-            s,
-            tink.parse.Reporter.expr((e.pos:tink.parse.Position).file)
-          )
-            .parseFullSelector();
-      case EConst(CIdent(s)):
-        [[({
-          tag: s,
-        }:SelectorPart)]];
+  static function merge<T:{}>(objects:Array<T>):T {
+    var ret:Dynamic = {};
+    for (o in objects)
+      for (field in Reflect.fields(o))
+        Reflect.setField(ret, field, Reflect.field(o, field));
+    return ret;
+  }
+
+  static function selector(e:Expr):Selector
+    return 
+      switch e {
+        case macro $v{(s:String)}:
+          @:privateAccess // TODO: this should not be necessary
+            new SelectorParser(
+              s,
+              tink.parse.Reporter.expr((e.pos:tink.parse.Position).file)
+            )
+              .parseFullSelector();
+        default:
+          [selectorOption(e)];
+      }
+
+  static var PSEUDOS = @:privateAccess {
+    var p = tink.csss.Parser;
+    [for (m in [p.STRICT_ELEMENTS, p.ELEMENTS, p.SIMPLE])
+      for (s => p in m) s => p
+    ];
+  }
+
+  static function selectorOption(e:Expr):SelectorOption {
+    
+    function patch(s:SelectorOption, patch:SelectorPart->SelectorPart):SelectorOption
+      return [for (i in 0...s.length) {
+        var p = s[i];
+        if (i < s.length - 1) p;
+        else merge([p, patch(p)]);
+      }];
+
+    function name(e:Expr)
+      return switch e.expr {
+        case EConst(CString(s)): s;
+        case EConst(CIdent(s)): Casing.camelToKebab(s);
+        default: e.reject('name expected');
+      }
+
+    function pseudo(e:Expr)
+      return switch e {
+        case macro $i{Casing.camelToKebab(_) => s}: 
+          switch PSEUDOS[s] {
+            case null: e.reject('unknown pseudo class/element');
+            case v: v;
+          }
+        case macro $i{_}($a{args}):
+          e.reject('pseudo classes/elements with args are currently not supported');
+        default: e.reject('invalid pseudo class/element');
+      }
+
+    function attr(a:Expr):AttrFilter
+      return switch a {
+        case { expr: EBinop(op, n, v)}:
+          {
+            name: name(n),
+            value: name(v),
+            op: switch op {
+              case OpAssign: Exactly;
+              case OpAssignOp(op): 
+                switch op {
+                  case OpXor: BeginsWith;
+                  case OpOr: HyphenSeparated;
+                  case OpMult: Contains;
+                  default: a.reject('unsupported attribute operator');
+                }
+              default: a.reject('unsupported attribute operator');
+            }
+          }
+        default:
+          {
+            name: name(a)
+          }
+      }
+
+    return switch e {
+      case macro $i{s}:
+        [{
+          tag: switch s {
+            case '_': null;
+            case '$': '&';
+            case v: Casing.camelToKebab(v);
+          },
+        }];
+      case macro $e.$cls:
+        patch(selectorOption(e), o -> {
+          classes: o.classes.concat([Casing.camelToKebab(cls)]),
+        });
+      case macro $e[$a]:
+        patch(selectorOption(e), o -> {
+          attrs: o.attrs.concat([attr(a)]),
+        });
+      case macro [$a]:
+        [{
+          attrs: [attr(a)]
+        }];
+      case macro $e($p):
+        patch(selectorOption(e), o -> {
+          pseudos: o.pseudos.concat([pseudo(p)]),
+        });
+      case macro ($p):
+        [{
+          pseudos: [pseudo(p)],
+        }];
+      case { expr: EBinop(op, parent, child )}:
+        patch(selectorOption(parent), o -> {
+          combinator: switch op {
+            case OpGt: Child;
+            case OpShr: Descendant;
+            case OpAdd: AdjacentSibling;
+            case OpInterval: GeneralSibling;
+            default: e.reject('invalid combinator');
+          },
+        }).concat(selectorOption(child));
       default:
-        e.reject('string expected');
+        e.reject('selector expected');
     }
+  }
 }
 #end
