@@ -3,3 +3,4 @@
 -lib tink_macro
 -lib tink_domspec
 -lib tink_color
+-lib mime

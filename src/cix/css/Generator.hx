@@ -39,6 +39,12 @@ class Generator {
       default: Failure('Ratio expected');
     }    
 
+  static function valToStr(v:SingleValue):Outcome<StringAt, String>
+    return switch v.value {
+      case VString(s): Success({ value: s, pos: v.pos });
+      default: Failure('String expected');
+    }
+
   static function normalizer(pos)
     return new Normalizer(
       tink.parse.Reporter.expr(Context.getPosInfos(pos).file),
@@ -47,6 +53,35 @@ class Generator {
         invert: CallResolver.makeCall1(valToCol, c -> Success(VColor(c.invert()))),
         fade: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(c1.get(ALPHA) * f))))),
         opacity: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(ChannelValue.FULL * f))))),
+        dataUri: {
+          var mimeTypes = Lazy.ofFunc(() -> {//TODO: this seems to be slow ... try to optimize
+            var raw:haxe.DynamicAccess<{ extensions: Null<Array<String>> }> = haxe.Json.parse(sys.io.File.getContent(Context.resolvePath('mime-db.json')));
+            [for (key => value in raw) 
+              if (value.extensions != null)
+                for (ext in value.extensions) ext => key
+            ];
+          });
+          CallResolver.makeCall2(valToStr, valToStr, 
+            (path, contentType) -> {
+              var file = Path.join([Context.getPosInfos(path.pos).file.directory(), path.value]);
+              var content = 
+                try sys.io.File.getBytes(file)
+                catch (e:Dynamic) {
+                  return Failure({ value: 'cannot read file $file', pos: path.pos });
+                }
+              var contentType = switch contentType.value {
+                case 'auto': switch mimeTypes.get()[path.value.extension()] {
+                  case null: 
+                    return Failure({ value: 'cannot automatically determine mime type of ${path.value}', pos: path.pos });
+                  case v: v;
+                }
+                case v: v;
+              }
+              Success(VCall({ value: 'url', pos: path.pos }, [{ pos: path.pos, value: VString('data:$contentType;base64,${haxe.crypto.Base64.encode(content)}')}]));
+            },
+            { value: 'auto', pos: (macro null).pos }
+          );
+        },
       },
       s -> switch Context.typeExpr(macro @:pos(s.pos) $i{s.value}) {
         case { expr: TField(_, fa) }:

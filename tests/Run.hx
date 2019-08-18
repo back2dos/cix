@@ -29,6 +29,7 @@ class Run {
 			}
 			$(focus) => {
 				outline = '1px solid red';
+				background = dataUri('"android.svg"');
 			}		
 		}
 		div => {

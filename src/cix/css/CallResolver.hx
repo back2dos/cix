@@ -7,6 +7,19 @@ import cix.css.Ast;
 using tink.CoreApi;
 
 
+abstract Failure(Position->StringAt) from Position->StringAt {
+
+  public inline function at(pos)
+    return this(pos);
+
+  @:from static function ofString(s:String):Failure
+    return pos -> { pos: pos, value: s };
+
+  @:from static function ofStringAt(s:StringAt):Failure
+    return _ -> s;
+
+}
+
 abstract CallResolver(CallResolverFunc) from CallResolverFunc to CallResolverFunc {//TODO: this whole thing is perhaps a bit too over-engineered
   public inline function resolve(name)
     return
@@ -22,30 +35,30 @@ abstract CallResolver(CallResolverFunc) from CallResolverFunc to CallResolverFun
       }
 
   @:from static function ofCalls(calls:haxe.DynamicAccess<Call>):CallResolver 
-    return name -> switch calls[name] {
+    return name -> switch calls[Casing.kebabToCamel(name)] {//TODO: the normalization should probably be smarter
       case null: None;
       case fn: Some(fn);
     }
 
-  static public function makeCall1<T1>(parse1, fn:T1->Outcome<ValueKind, String>, ?default1:T1):Call 
+  static public function makeCall1<T1>(parse1, fn:T1->Outcome<ValueKind, Failure>, ?default1:T1):Call 
     return makeCallN([
       new Param(parse1, default1)
     ], fn);
 
-  static public function makeCall2<T1, T2>(parse1, parse2, fn:T1->T2->Outcome<ValueKind, String>, ?default2:T2, ?default1:T1):Call 
+  static public function makeCall2<T1, T2>(parse1, parse2, fn:T1->T2->Outcome<ValueKind, Failure>, ?default2:T2, ?default1:T1):Call 
     return makeCallN([
       new Param(parse1, default1),
       new Param(parse2, default2),
     ], fn);
 
-  static public function makeCall3<T1, T2, T3>(parse1, parse2, parse3, fn:T1->T2->T3->Outcome<ValueKind, String>, ?default3:T3, ?default2:T2, ?default1:T1):Call 
+  static public function makeCall3<T1, T2, T3>(parse1, parse2, parse3, fn:T1->T2->T3->Outcome<ValueKind, Failure>, ?default3:T3, ?default2:T2, ?default1:T1):Call 
     return makeCallN([
       new Param(parse1, default1),
       new Param(parse2, default2),
       new Param(parse3, default3),
     ], fn);
 
-  static public function makeCall4<T1, T2, T3, T4>(parse1, parse2, parse3, parse4, fn:T1->T2->T3->T4->Outcome<ValueKind, String>, ?default4:T4, ?default3:T3, ?default2:T2, ?default1:T1):Call 
+  static public function makeCall4<T1, T2, T3, T4>(parse1, parse2, parse3, parse4, fn:T1->T2->T3->T4->Outcome<ValueKind, Failure>, ?default4:T4, ?default3:T3, ?default2:T2, ?default1:T1):Call 
     return makeCallN([
       new Param(parse1, default1),
       new Param(parse2, default2),
@@ -77,10 +90,10 @@ abstract CallResolver(CallResolverFunc) from CallResolverFunc to CallResolverFun
               }
           ];
 
-          var ret:Outcome<ValueKind, String> = Reflect.callMethod(null, fn, args);
+          var ret:Outcome<ValueKind, Failure> = Reflect.callMethod(null, fn, args);
           switch ret {
             case Success(v): Success({ value: v, pos: orig.pos });
-            case Failure(e): Failure({ value: e, pos: orig.pos });
+            case Failure(e): Failure(e.at(orig.pos));
           }
         }
   }
