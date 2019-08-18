@@ -56,7 +56,6 @@ enum abstract Unit(String) to String {
 
   var MixedLength = 'calc(length)';
 
-  // public var kind(get, never):UnitKind;
   public function getKind():UnitKind
     return switch this {
       case Deg: KAngle;
