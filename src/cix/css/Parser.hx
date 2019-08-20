@@ -248,12 +248,6 @@ class Parser extends SelectorParser {
         )
   }
 
-  function namedVal()
-    return {
-      name: strAt(ident().sure()) + expect(':'),
-      value: parseValue()
-    };
-
   function parseDeclaration():Declaration {
     var properties = [],
         childRules = [],
@@ -261,6 +255,15 @@ class Parser extends SelectorParser {
         keyframes = [],
         fonts = [],
         mediaQueries = [];
+
+    var ret:Declaration = {
+      mediaQueries: mediaQueries,
+      fonts: fonts,
+      variables: variables,
+      properties: properties,
+      childRules: childRules,
+      keyframes: keyframes,
+    }
 
     function parsePart()
       return
@@ -282,21 +285,25 @@ class Parser extends SelectorParser {
           true;
         }
         else if (allowHere('$')) {
-          variables.push(namedVal());
+          variables.push({
+            name: strAt(ident().sure()) + expect(':'),
+            value: parseValue()
+          });
           false;
         }
         else
-          switch attempt(located.bind(parseFullSelector).catchExceptions.bind()) {
-            case Success(s):
-              if (error != null)
-                throw error;
+          switch attempt(() -> tink.core.Error.catchExceptions(() -> propName() + expect(':'))) {
+            case Failure(e):
               childRules.push({
-                selector: s,
+                selector: located(parseFullSelector),
                 declaration: expect('{') + parseDeclaration() + expect('}'),
               });
               true;
-            default:
-              properties.push(parseProperty());
+            case Success(name):
+              properties.push({
+                name: name,
+                value: parseValue(),
+              });
               false;
           }
 
@@ -313,22 +320,7 @@ class Parser extends SelectorParser {
       }
     }
 
-    return {
-      mediaQueries: mediaQueries,
-      fonts: fonts,
-      variables: variables,
-      properties: properties,
-      childRules: childRules,
-      keyframes: keyframes,
-    }
-  }
-
-  var error:Error;
-
-  override function unknownPseudo(name:StringSlice) {
-    if (error == null)
-      error = makeError('Unknown pseudo selector $name', makePos(name.start, name.end));
-    return Vendored('invalid');
+    return ret;
   }
 
   #if macro

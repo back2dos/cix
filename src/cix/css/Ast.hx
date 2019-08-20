@@ -92,11 +92,13 @@ typedef PlainDeclaration = DeclarationOf<PlainDeclaration>;
 
 typedef NormalizedDeclaration = PlainDeclaration & ExtrasOf<PlainDeclaration>;
 
+typedef Variable = {
+  final name:StringAt;
+  final value:CompoundValue;
+}
+
 typedef Declaration = DeclarationOf<Declaration> & ExtrasOf<Declaration> & {
-  final variables:ListOf<{
-    final name:StringAt;
-    final value:CompoundValue;
-  }>;
+  final variables:ListOf<Variable>;
 }
 
 typedef ExtrasOf<Child:DeclarationOf<Child>> = {
