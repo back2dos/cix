@@ -15,14 +15,6 @@ class Parser extends SelectorParser {
   static final BR_CLOSE = Char('}');
   static final QUOTE = Char('"\'');
 
-  static var binOps = {
-    var groups = [
-      ['+' => OpAdd]
-    ];
-
-    [for (prio in 0...groups.length) for (tk => op in groups[prio]) tk => { prio: prio, op: op }];
-  }
-
   override function doSkipIgnored() {
     super.doSkipIgnored();
 
