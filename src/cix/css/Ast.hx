@@ -99,6 +99,11 @@ typedef Variable = {
 
 typedef Declaration = DeclarationOf<Declaration> & ExtrasOf<Declaration> & {
   final variables:ListOf<Variable>;
+  final states:ListOf<{
+    final name:StringAt;
+    final ?value:StringAt;
+    final declaration:Declaration;
+  }>;
 }
 
 typedef ExtrasOf<Child:DeclarationOf<Child>> = {

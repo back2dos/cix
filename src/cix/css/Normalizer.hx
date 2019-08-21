@@ -212,7 +212,8 @@ class Normalizer<Error> {
                   keyframes: sheet.keyframes,
                   fonts: sheet.fonts,
                   mediaQueries: sheet.mediaQueries,
-                  childRules: sheet.childRules
+                  childRules: sheet.childRules,
+                  states: sheet.states,
                 }),
               }
           default: 

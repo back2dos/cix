@@ -71,12 +71,21 @@ class HxParser {
       value: val(value),
     }
 
+  static function parseDecl(e:Expr):Declaration 
+    return
+      switch e.expr {
+        case EConst(CString(_)): Parser.parseDecl(e).sure(); //TODO: this duplicates the switch in Generator
+        default: parse(e);
+      }  
+
   static public function parse(e:Expr):Declaration {
+
     var variables = [],
         properties = [],
         mediaQueries = [],
         keyframes = [],
         fonts = [],
+        states = [],
         childRules = [];
 
     var ret:Declaration = {
@@ -86,6 +95,7 @@ class HxParser {
       keyframes: keyframes,
       fonts: fonts,
       childRules: childRules,
+      states: states,
     }
 
     switch e.expr {
@@ -128,6 +138,30 @@ class HxParser {
                 case v: v[1].reject('no arguments allowed here');
               }
 
+            case macro @state($a{args}) $decl:
+              function s(e:Expr)
+                return switch e {
+                  case null: null;
+                  default: {
+                    pos: e.pos,
+                    value: e.getIdent().sure()
+                  }
+                } 
+                
+              function add(name, ?value)
+                states.push({
+                  name: s(name),
+                  value: s(value),
+                  declaration: parseDecl(decl),
+                });
+
+              switch args {
+                case [macro $i{name}]:
+                case [macro $n = $v]:
+                case [v]: v.reject('invalid state');//TODO: better error message
+                case []: e.reject('no arguments allowed here');
+                case v: v[1].reject('exactly one arguments allowed here');
+              }
             case macro @media($a{args}) $rules:
               e.reject('media queries not supported yet');
 
@@ -137,10 +171,7 @@ class HxParser {
                   pos: s.pos,
                   value: selector(s)
                 },
-                declaration: switch rules.expr {
-                  case EConst(CString(_)): Parser.parseDecl(rules).sure();
-                  default: parse(rules);
-                }
+                declaration: parseDecl(rules)
               });
             case tryProp(_) => Success(p): properties.push(p);
             default: e.reject('invalid syntax');

@@ -254,7 +254,8 @@ class Parser extends SelectorParser {
         variables = [],
         keyframes = [],
         fonts = [],
-        mediaQueries = [];
+        mediaQueries = [],
+        states = [];
 
     var ret:Declaration = {
       mediaQueries: mediaQueries,
@@ -263,6 +264,7 @@ class Parser extends SelectorParser {
       properties: properties,
       childRules: childRules,
       keyframes: keyframes,
+      states: states,
     }
 
     function parsePart()
@@ -279,14 +281,20 @@ class Parser extends SelectorParser {
             case 'keyframes':
               keyframes.push(parseKeyFrames());
             case 'state':
-              die('no support for states yet');
+              // die('no support for states yet');
+              // expect('(')
+              states.push({
+                name: expect('(') + strAt(ident().sure()),
+                value: (if (allow('=')) strAt(ident().sure()) else null) + expect(')'),
+                declaration: expect('{') + parseDeclaration() + expect('}'),
+              });
             case unknown: reject(unknown, 'unknown at-rule $unknown');
           }
           true;
         }
         else if (allowHere('$')) {
           variables.push({
-            name: strAt(ident().sure()) + expect(':'),
+            name: strAt(ident(true).sure()) + expect(':'),
             value: parseValue()
           });
           false;

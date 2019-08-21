@@ -49,6 +49,9 @@ class Run {
 				font-size: 2em;
 			}
 		}
+		@state(foo=bar) {
+			
+		}
 		@font-face {
 			src: url("/fonts/OpenSans-Regular-webfont.woff2") format("woff2"),
 					 url("/fonts/OpenSans-Regular-webfont.woff") format("woff");				
