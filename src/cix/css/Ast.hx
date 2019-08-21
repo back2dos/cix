@@ -101,7 +101,7 @@ typedef Declaration = DeclarationOf<Declaration> & ExtrasOf<Declaration> & {
   final variables:ListOf<Variable>;
   final states:ListOf<{
     final name:StringAt;
-    final ?value:StringAt;
+    final cond:StateCondition;
     final declaration:Declaration;
   }>;
 }
@@ -146,4 +146,10 @@ typedef Keyframes = {
     final pos:Int;
     final properties:ListOf<Property>;
   }>;
+}
+
+enum StateCondition {
+  IsSet;
+  IsNotSet;
+  Eq(value:StringAt);
 }

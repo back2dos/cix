@@ -140,25 +140,22 @@ class HxParser {
 
             case macro @state($a{args}) $decl:
               function s(e:Expr)
-                return switch e {
-                  case null: null;
-                  default: {
-                    pos: e.pos,
-                    value: e.getIdent().sure()
-                  }
+                return {
+                  pos: e.pos,
+                  value: e.getIdent().sure()
                 } 
                 
-              function add(name, ?value)
+              function add(name, cond)
                 states.push({
                   name: s(name),
-                  value: s(value),
+                  cond: cond,
                   declaration: parseDecl(decl),
                 });
 
               switch args {
-                case [macro $i{name}]:
-                case [macro $n = $v]:
-                case [v]: v.reject('invalid state');//TODO: better error message
+                case [macro !$name]: add(name, IsNotSet);
+                case [macro $name = $value]: add(name, Eq(s(value)));
+                case [macro $name]: add(name, IsSet);
                 case []: e.reject('no arguments allowed here');
                 case v: v[1].reject('exactly one arguments allowed here');
               }

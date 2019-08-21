@@ -50,7 +50,7 @@ class Run {
 			}
 		}
 		@state(foo=bar) {
-			
+			margin-top: ${margin + 2em};
 		}
 		@font-face {
 			src: url("/fonts/OpenSans-Regular-webfont.woff2") format("woff2"),

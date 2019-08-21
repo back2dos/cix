@@ -281,13 +281,23 @@ class Parser extends SelectorParser {
             case 'keyframes':
               keyframes.push(parseKeyFrames());
             case 'state':
-              // die('no support for states yet');
-              // expect('(')
-              states.push({
-                name: expect('(') + strAt(ident().sure()),
-                value: (if (allow('=')) strAt(ident().sure()) else null) + expect(')'),
-                declaration: expect('{') + parseDeclaration() + expect('}'),
-              });
+              
+              expect('(');
+              
+              function add(name, cond)
+                states.push({
+                  name: name,
+                  cond: cond,
+                  declaration: expect(')') + expect('{') + parseDeclaration() + expect('}'),
+                });
+
+              function name()
+                return strAt(ident().sure());
+
+              if (allow('!'))
+                add(name(), IsNotSet);
+              else
+                add(name(), if (allow('=')) Eq(name()) else IsSet);
             case unknown: reject(unknown, 'unknown at-rule $unknown');
           }
           true;

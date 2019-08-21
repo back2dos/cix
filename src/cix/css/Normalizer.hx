@@ -206,7 +206,7 @@ class Normalizer<Error> {
               var d = c.declaration;
               {
                 name: { value: name, pos: c.selector.pos },
-                decl: normalizeRule({
+                decl: doNormalizeRule({
                   variables: sheet.variables.concat(d.variables),
                   properties: sheet.properties,
                   keyframes: sheet.keyframes,
@@ -221,8 +221,42 @@ class Normalizer<Error> {
         }
     ];
   }
+
+  // function getStates(d:Declaration) {
+  //   var ret = new Map();
+
+  //   function sweep(d:Declaration) {
+      
+  //     for (s in d.states) {
+  //       var name = s.name.value;
+  //       switch [s.value, ret[name]] {
+  //         case [null, Enum(_)]: fail('$name already declared to be a flag', s.name.pos);
+  //         case [null, _]: ret[name] = Flag;
+  //         case [v, null]: ret[name] = Enum([v.value]);
+  //         case [v, Enum(flags)]: flags.push(v.value);
+  //         default: fail('$name already declared to be a flag', s.name.pos);
+  //       }
+
+  //       sweep(s.declaration);
+  //     }
+
+  //     for (m in d.mediaQueries) 
+  //       sweep(m.declaration);
+
+  //     for (c in d.childRules)
+  //       sweep(c.declaration);
+  //   }
+  //   sweep(d);
+  //   return ret;
+  // }
+
   public function normalizeRule(d:Declaration):NormalizedDeclaration {
-    //TODO: this will also have to perform variable substitution
+    // trace(getStates(d));
+    return doNormalizeRule(d);
+  }
+
+  function doNormalizeRule(d:Declaration):NormalizedDeclaration {
+
     var fonts:Array<FontFace> = [],
         keyframes:Array<Keyframes> = [],
         mediaQueries:Array<MediaQueryOf<PlainDeclaration>> = [];
@@ -350,4 +384,9 @@ class Normalizer<Error> {
       childRules: ret.childRules,
     }
   }
+}
+
+private enum StateKind {
+  Flag;
+  Enum(options:Array<String>);
 }
