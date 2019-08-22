@@ -85,7 +85,6 @@ typedef DeclarationOf<Child:DeclarationOf<Child>> = {
     final selector:Located<Selector>;
     final declaration:Child;
   }>;
-
 }
 
 typedef PlainDeclaration = DeclarationOf<PlainDeclaration>;
@@ -97,13 +96,15 @@ typedef Variable = {
   final value:CompoundValue;
 }
 
+typedef StatesOf<Child:DeclarationOf<Child>> = ListOf<{// the typedef is probably useless
+  final name:StringAt;
+  final cond:StateCondition;
+  final declaration:Child;
+}>;
+
 typedef Declaration = DeclarationOf<Declaration> & ExtrasOf<Declaration> & {
   final variables:ListOf<Variable>;
-  final states:ListOf<{
-    final name:StringAt;
-    final cond:StateCondition;
-    final declaration:Declaration;
-  }>;
+  final states:StatesOf<Declaration>;  
 }
 
 typedef ExtrasOf<Child:DeclarationOf<Child>> = {

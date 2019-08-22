@@ -195,6 +195,9 @@ class Normalizer<Error> {
     if (sheet.fonts.length > 0)
       fail('top level fonts not supported', sheet.fonts[0].pos);
 
+    for (v in getStates(sheet))
+      fail('states not implemented for sheets', v.pos);
+
     return [
       for (c in sheet.childRules)
         switch c.selector.value {
@@ -222,36 +225,41 @@ class Normalizer<Error> {
     ];
   }
 
-  // function getStates(d:Declaration) {
-  //   var ret = new Map();
+  function getStates(d:Declaration) {
+    var ret = new Map();
 
-  //   function sweep(d:Declaration) {
+    function sweep(d:Declaration) {
       
-  //     for (s in d.states) {
-  //       var name = s.name.value;
-  //       switch [s.value, ret[name]] {
-  //         case [null, Enum(_)]: fail('$name already declared to be a flag', s.name.pos);
-  //         case [null, _]: ret[name] = Flag;
-  //         case [v, null]: ret[name] = Enum([v.value]);
-  //         case [v, Enum(flags)]: flags.push(v.value);
-  //         default: fail('$name already declared to be a flag', s.name.pos);
-  //       }
+      for (s in d.states) {
+        
+        var name = s.name.value,
+            nfo = 
+              switch ret[name] {
+                case null: 
+                  ret[name] = { options: [], boolish: false, pos: s.name.pos };
+                case v: v; 
+              }
 
-  //       sweep(s.declaration);
-  //     }
+        switch s.cond {
+          case Eq(s): nfo.options.push(s);
+          default: nfo.boolish = true;
+        }
 
-  //     for (m in d.mediaQueries) 
-  //       sweep(m.declaration);
+        sweep(s.declaration);
+      }
 
-  //     for (c in d.childRules)
-  //       sweep(c.declaration);
-  //   }
-  //   sweep(d);
-  //   return ret;
-  // }
+      for (m in d.mediaQueries) 
+        sweep(m.declaration);
+
+      for (c in d.childRules)
+        sweep(c.declaration);
+    }
+    sweep(d);
+    return ret;
+  }
 
   public function normalizeRule(d:Declaration):NormalizedDeclaration {
-    // trace(getStates(d));
+    var states = getStates(d);
     return doNormalizeRule(d);
   }
 
@@ -367,10 +375,39 @@ class Normalizer<Error> {
 
       return {
         properties: props(d.properties),
-        childRules: [for (c in d.childRules) {
-          selector: c.selector,
-          declaration: sweep(c.declaration, selectors.concat([c.selector]), queries, vars, animations)
-        }]
+        childRules: 
+          []
+            .concat([
+              for (c in d.childRules) {
+                selector: c.selector,
+                declaration: sweep(c.declaration, selectors.concat([c.selector]), queries, vars, animations)
+              }
+            ])
+            .concat([
+              for (s in d.states) {
+                var selector:Located<Selector> = {
+                  pos: s.name.pos,
+                  value: [[{ 
+                    pseudos: [Vendored('cix-state')], 
+                    attrs: [{ 
+                      name: s.name.value, 
+                      op: switch s.cond {
+                        case Eq(_) | IsNotSet: Exactly;
+                        default: null;
+                      },
+                      value: switch s.cond {
+                        case Eq(v): v.value;
+                        default: null;
+                      }
+                    }] 
+                  }]],
+                };
+                {
+                  selector: selector,
+                  declaration: sweep(s.declaration, selectors.concat([selector]), queries, vars, animations)
+                }
+              }
+            ]),
       }
     }
 
@@ -382,11 +419,7 @@ class Normalizer<Error> {
       mediaQueries: mediaQueries,
       properties: ret.properties,
       childRules: ret.childRules,
+      // states: ret.states,
     }
   }
-}
-
-private enum StateKind {
-  Flag;
-  Enum(options:Array<String>);
 }

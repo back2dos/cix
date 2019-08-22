@@ -48,63 +48,69 @@ class Generator {
   static function normalizer(pos)
     return new Normalizer(
       tink.parse.Reporter.expr(Context.getPosInfos(pos).file),
-      {
-        mix: CallResolver.makeCall3(valToCol, valToCol, valToRatio, (c1, c2, f) -> Success(VColor(c1.mix(c2, f))), .5),
-        invert: CallResolver.makeCall1(valToCol, c -> Success(VColor(c.invert()))),
-        fade: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(c1.get(ALPHA) * f))))),
-        opacity: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(ChannelValue.FULL * f))))),
-        dataUri: {
-          var mimeTypes = Lazy.ofFunc(() -> {//TODO: this seems to be slow ... try to optimize
-            var raw:haxe.DynamicAccess<{ extensions: Null<Array<String>> }> = haxe.Json.parse(sys.io.File.getContent(Context.resolvePath('mime-db.json')));
-            [for (key => value in raw) 
-              if (value.extensions != null)
-                for (ext in value.extensions) ext => key
-            ];
-          });
-          CallResolver.makeCall2(valToStr, valToStr, 
-            (path, contentType) -> {
-              var file = Path.join([Context.getPosInfos(path.pos).file.directory(), path.value]);
-              var content = 
-                try sys.io.File.getBytes(file)
-                catch (e:Dynamic) {
-                  return Failure({ value: 'cannot read file $file', pos: path.pos });
-                }
-              var contentType = switch contentType.value {
-                case 'auto': switch mimeTypes.get()[path.value.extension()] {
-                  case null: 
-                    return Failure({ value: 'cannot automatically determine mime type of ${path.value}', pos: path.pos });
-                  case v: v;
-                }
-                case v: v;
-              }
-              Success(VCall({ value: 'url', pos: path.pos }, [{ pos: path.pos, value: VString('data:$contentType;base64,${haxe.crypto.Base64.encode(content)}')}]));
-            },
-            { value: 'auto', pos: (macro null).pos }
-          );
-        },
-      },
-      s -> switch Context.typeExpr(macro @:pos(s.pos) $i{s.value}) {
-        case { expr: TField(_, fa) }:
-          switch fa {
-            case FStatic(_, _.get() => f) if (f.isFinal || f.kind.match(FVar(AccInline, _))): 
-              switch f.expr() {
-                case { pos: pos, expr: TConst(TString(v)) }: 
-                  switch Parser.parseVal({ pos: pos, expr: EConst(CString(v)) }) {
-                    case Success({ components: [[v]], importance: 0 }): v;
-                    case Success(_): 
-                      s.pos.error('${s.value} should be a single css value');
-                    case Failure(e): 
-                      s.pos.error('${s.value} is not a css value because ${e.message}');
-                  }
-                default: 
-                  s.pos.error('${s.value} is not a string constant');
-              }
-            default: s.pos.error('can only access final or inline static fields');
-          }
-        case { expr: TLocal(_) }: s.pos.error('cannot access local variables');
-        default: null;
-      }
+      calls,
+      resolveDotPath
     );
+
+  static var mimeTypes = Lazy.ofFunc(() -> {//TODO: this seems to be slow ... try to optimize
+    var raw:haxe.DynamicAccess<{ extensions: Null<Array<String>> }> = haxe.Json.parse(sys.io.File.getContent(Context.resolvePath('mime-db.json')));
+    [for (key => value in raw) 
+      if (value.extensions != null)
+        for (ext in value.extensions) ext => key
+    ];
+  });
+
+  static var calls:CallResolver = {
+    mix: CallResolver.makeCall3(valToCol, valToCol, valToRatio, (c1, c2, f) -> Success(VColor(c1.mix(c2, f))), .5),
+    invert: CallResolver.makeCall1(valToCol, c -> Success(VColor(c.invert()))),
+    fade: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(c1.get(ALPHA) * f))))),
+    opacity: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(ChannelValue.FULL * f))))),
+    dataUri: {
+      CallResolver.makeCall2(valToStr, valToStr, 
+        (path, contentType) -> {
+          var file = Path.join([Context.getPosInfos(path.pos).file.directory(), path.value]);
+          var content = 
+            try sys.io.File.getBytes(file)
+            catch (e:Dynamic) {
+              return Failure({ value: 'cannot read file $file', pos: path.pos });
+            }
+          var contentType = switch contentType.value {
+            case 'auto': switch mimeTypes.get()[path.value.extension()] {
+              case null: 
+                return Failure({ value: 'cannot automatically determine mime type of ${path.value}', pos: path.pos });
+              case v: v;
+            }
+            case v: v;
+          }
+          Success(VCall({ value: 'url', pos: path.pos }, [{ pos: path.pos, value: VString('data:$contentType;base64,${haxe.crypto.Base64.encode(content)}')}]));
+        },
+        { value: 'auto', pos: (macro null).pos }
+      );
+    },
+  }
+
+  static function resolveDotPath(s:StringAt) 
+    return switch Context.typeExpr(macro @:pos(s.pos) $i{s.value}) {
+      case { expr: TField(_, fa) }:
+        switch fa {
+          case FStatic(_, _.get() => f) if (f.isFinal || f.kind.match(FVar(AccInline, _))): 
+            switch f.expr() {
+              case { pos: pos, expr: TConst(TString(v)) }: 
+                switch Parser.parseVal({ pos: pos, expr: EConst(CString(v)) }) {
+                  case Success({ components: [[v]], importance: 0 }): v;
+                  case Success(_): 
+                    s.pos.error('${s.value} should be a single css value');
+                  case Failure(e): 
+                    s.pos.error('${s.value} is not a css value because ${e.message}');
+                }
+              default: 
+                s.pos.error('${s.value} is not a string constant');
+            }
+          default: s.pos.error('can only access final or inline static fields');
+        }
+      case { expr: TLocal(_) }: s.pos.error('cannot access local variables');
+      default: null;
+    }
 
   static function localMethod(pos:Position) {
     var ret = Context.getLocalMethod();
