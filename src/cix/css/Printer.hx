@@ -151,13 +151,17 @@ private class SelectorPrinter extends tink.csss.Printer {
   }
 
   static public function combine(space:String, path:String, option:SelectorOption) {
-
+    //TODO: there should probably be an error for html in non-first place
     var p = new SelectorPrinter(space, path),
-        hasAmp = hasAmp(option);
+        hasAmp = hasAmp(option),
+        isGlobal = option[0].tag == 'html';
+
+    if (isGlobal && option.length > 1 && p.part(option[0]) == 'html')
+      option = [for (i in 1...option.length) option[i]];
 
     var ret = p.option(option);
     return 
-      if (hasAmp || option[0].tag == 'html') ret;
+      if (hasAmp || isGlobal) ret;
       else '$path $ret';
   }
   

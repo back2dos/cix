@@ -57,6 +57,12 @@ class Run {
 					 url("/fonts/OpenSans-Regular-webfont.woff") format("woff");				
 			font-family: "Open Sans";
 		}
+		html {
+			background: #eee;
+		}
+		html button {
+			border: 2px solid pink;
+		}
 		div {
 			$color: red;
 			$thickness: 10px;
