@@ -78,7 +78,10 @@ class Parser extends SelectorParser {
         else if (allowHere('#')) parseColor();
         else if (is(QUOTE)) VString(parseString());
         else if (allowHere('-'))
-          tryParseNumber(-1, die.bind('number expected'));
+          tryParseNumber(-1, () -> switch ident(true) {
+            case Success(v): VAtom('-' + v.toString());
+            default: die('expected identifier or number');
+          });
         else tryParseNumber(1, function () {
           var val = ident(true).sure();
           return
@@ -156,7 +159,11 @@ class Parser extends SelectorParser {
 
   function propName()
     return 
-      if (is(PROP_START)) strAt(readWhile(tink.csss.Parser.IDENT_CONTD));
+      if (is(PROP_START)) 
+        switch strAt(readWhile(tink.csss.Parser.IDENT_CONTD)) {
+          case { value : '-'}: die('- is not a valid property name');
+          case v: v;
+        }
       else die('property name expected');
 
   function parseProperty():Property

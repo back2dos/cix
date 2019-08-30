@@ -42,6 +42,7 @@ class Run {
 		margin-right: ($margin + 2em + 10vh);
 		transition: all .25s;
 		$color: yellow;
+		display: -webkit-box;
 		-webkit-blub: boink;
 		&:hover {
 			background: mix(blue, mix(red, $color));
