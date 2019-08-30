@@ -137,9 +137,8 @@ class Generator {
   }
 
   static public function makeRule(e) {
+    var cl = makeClass(InlineRule(e.pos, localType(), localMethod(e.pos)));
     var decl = normalizer(e.pos).normalizeRule(parse(e));
-
-    var cl = makeClass(InlineRule(e.pos, localType(), localMethod(e.pos)), decl);
 
     return macro @:pos(e.pos) ${export(e.pos, [{ field: { value: 'css', pos: e.pos }, className: cl, css: printer.print('.$cl', decl) }])}.css;
   }
@@ -159,7 +158,7 @@ class Generator {
         method = localMethod(e.pos);
     
     return export(e.pos, [for (rule in sheet) {
-      var cl = makeClass(NamedRule(rule.name, type, method), rule.decl);
+      var cl = makeClass(NamedRule(rule.name, type, method));
       {
         field: rule.name,
         className: cl,
@@ -285,7 +284,7 @@ class Generator {
   static public dynamic function join(parts:Array<String>)
     return parts.join('–');// this is an en dash (U+2013) to avoid collision with the more likely minus
 
-  static public dynamic function makeClass(src:DeclarationSource, decl:NormalizedDeclaration):String
+  static public dynamic function makeClass(src:DeclarationSource, ?state:State):String
     return namespace + join(strip([showSource(src), '${counter++}']));
 
 }
