@@ -31,6 +31,8 @@ class Normalizer<Error> {
 
       'rgb', 'rgba', 'hsl', 'hsla',
 
+      'linear-gradient',
+
       'blur', 'brightness', 'contrast', 'hue-rotate', 'grayscale',
 
       'translate', 'translateX', 'translateY', 'translateZ', 'translate3d',
