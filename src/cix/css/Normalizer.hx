@@ -26,8 +26,7 @@ class Normalizer<Error> {
 
   static var CSS_BUILTINS = {
     var list = [
-      'calc',
-
+      'calc', 'attr',
       'url', 'format',
 
       'rgb', 'rgba', 'hsl', 'hsla',
