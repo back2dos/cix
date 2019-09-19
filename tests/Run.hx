@@ -47,7 +47,7 @@ class Run {
 		&:hover {
 			background: mix(blue, mix(red, $color));
 			@media (max-width: 500px) {
-				font-size: 2em;
+				font-size: ${A.FONTSIZE};
 			}
 		}
 		@state(foo=bar) {

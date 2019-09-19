@@ -90,7 +90,7 @@ class Generator {
   }
 
   static function resolveDotPath(s:StringAt) 
-    return switch Context.typeExpr(macro @:pos(s.pos) $i{s.value}) {
+    return switch Context.typeExpr(macro @:pos(s.pos) $p{s.value.split('.')}) {
       case { expr: TField(_, fa) }:
         switch fa {
           case FStatic(_, _.get() => f) if (f.isFinal || f.kind.match(FVar(AccInline, _))): 

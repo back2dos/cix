@@ -88,7 +88,8 @@ class Parser extends SelectorParser {
             if (allowHere('('))
               VCall(strAt(val), parseList(parseSingleValue.bind(), { sep: ',', end: ')' }));
             else
-              if (interpolated) VVar(val);//TODO: implement https://github.com/back2dos/cix/issues/4 here
+              if (interpolated) 
+                VVar(val.toString() + readWhile(tink.csss.Parser.IDENT_CONTD || '.'));
               else switch COLOR_CONSTANTS[val] {
                 case null: VAtom(val);
                 case c: VColor(c);
