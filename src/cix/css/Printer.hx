@@ -68,7 +68,7 @@ class Printer {
     ret.push(plainDeclaration(paths, d));
 
     for (m in d.mediaQueries) 
-      ret.push('@media ${mediaQuery(m.conditions)}$hSpace{$vSpace' + plainDeclaration(paths, d, indent) + '$vSpace}');
+      ret.push('@media ${mediaQuery(m.conditions)}$hSpace{$vSpace' + plainDeclaration(paths, m.declaration, indent) + '$vSpace}');
 
     return ret.join('$vSpace$vSpace');        
   }
