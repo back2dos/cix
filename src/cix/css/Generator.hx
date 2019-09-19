@@ -170,6 +170,7 @@ class Generator {
   static final META = ':cix-output';
   static final isEmbedded = #if cix_output false #else true #end;
   static var initialized = false;
+  @:persistent static var classCounter = 0;
   static function export(pos:Position, classes:ListOf<{ final field:StringAt; final className:String; final css:String; }>) 
     return {
       if (!initialized) {
@@ -219,7 +220,10 @@ class Generator {
         #end
       }
           
-      var name = 'Cix${counter++}'; // TODO: should be a separate counter
+      var name = 'Cix${classCounter++}';
+      for (i in 0...100) // TODO: this loop pretty much duplicates logic in tink.macro.BuildCache
+        if (name.definedType() == None) break;
+        else name = 'Cix${classCounter++}';
 
       var cls = {
         var p = name.asTypePath();
@@ -285,7 +289,17 @@ class Generator {
     return parts.join('–');// this is an en dash (U+2013) to avoid collision with the more likely minus
 
   static public dynamic function makeClass(src:DeclarationSource, ?state:State):String
-    return namespace + join(strip([showSource(src), '${counter++}']));
+    return namespace + join(strip([showSource(src), id(counter++)]));
+
+  static var CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789_-';
+  static function id(i:Int) {
+    var ret = '';
+    while (i > 0) {
+      ret += CHARS.charAt(i % CHARS.length);
+      i = Std.int(i / CHARS.length);
+    }
+    return ret;
+  }
 
 }
 
