@@ -39,6 +39,12 @@ class Generator {
       default: Failure('Ratio expected');
     }    
 
+  static function valToAngle(v:SingleValue)
+    return switch v.value {
+      case VNumeric(f, null | Deg): Success(f);
+      default: Failure('Ratio expected');
+    }        
+
   static function valToStr(v:SingleValue):Outcome<StringAt, String>
     return switch v.value {
       case VString(s): Success({ value: s, pos: v.pos });
@@ -63,8 +69,12 @@ class Generator {
   static var calls:CallResolver = {
     mix: CallResolver.makeCall3(valToCol, valToCol, valToRatio, (c1, c2, f) -> Success(VColor(c1.mix(c2, f))), .5),
     invert: CallResolver.makeCall1(valToCol, c -> Success(VColor(c.invert()))),
-    fade: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(c1.get(ALPHA) * f))))),
-    opacity: CallResolver.makeCall2(valToCol, valToRatio, (c1, f) -> Success(VColor(c1.with(ALPHA, Math.round(ChannelValue.FULL * f))))),
+    fade: CallResolver.makeCall2(valToCol, valToRatio, (c, f) -> Success(VColor(c.with(ALPHA, Math.round(c.get(ALPHA) * f))))),
+    opacity: CallResolver.makeCall2(valToCol, valToRatio, (c, f) -> Success(VColor(c.with(ALPHA, Math.round(ChannelValue.FULL * f))))),
+    huerotate: CallResolver.makeCall2(valToCol, valToAngle, (c, f) -> Success(VColor(Color.hsv(c.hue + f, c.saturation, c.value)))),
+    hue: CallResolver.makeCall2(valToCol, valToAngle, (c, f) -> Success(VColor(Color.hsv(f, c.saturation, c.value)))),
+    saturate: CallResolver.makeCall2(valToCol, valToRatio, (c, f) -> Success(VColor(Color.hsv(c.hue, c.saturation * f, c.value)))),
+    saturation: CallResolver.makeCall2(valToCol, valToRatio, (c, f) -> Success(VColor(Color.hsv(c.hue, f, c.value)))),
     dataUri: {
       CallResolver.makeCall2(valToStr, valToStr, 
         (path, contentType) -> {

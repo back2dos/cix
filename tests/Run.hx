@@ -1,7 +1,5 @@
 package ;
 
-// import A;
-
 class Run {
 	
 	static final DURATION = '25s';
