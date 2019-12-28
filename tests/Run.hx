@@ -1,9 +1,10 @@
 package ;
 
 // import A;
+import cix.Style.rule as css;
 
 class Run {
-	
+
 	static final DURATION = '25s';
 
   static final bar = cix.Style.sheet({
@@ -30,7 +31,7 @@ class Run {
 			$(focus) => {
 				outline = '1px solid red';
 				background = dataUri('"android.svg"');
-			}		
+			}
 		}
 		div => {
 			background = color;
@@ -55,7 +56,7 @@ class Run {
 		}
 		@font-face {
 			src: url("/fonts/OpenSans-Regular-webfont.woff2") format("woff2"),
-					 url("/fonts/OpenSans-Regular-webfont.woff") format("woff");				
+					 url("/fonts/OpenSans-Regular-webfont.woff") format("woff");
 			font-family: "Open Sans";
 		}
 		html {
@@ -71,7 +72,7 @@ class Run {
 				padding: ${2 * thickness};
 				margin: $thickness (2 * $thickness);
 				background: $color;
-			}  			
+			}
 		}
 		foo, bar {
 			beep, boop {
@@ -91,9 +92,27 @@ class Run {
 		}
 	');
 
+	static final SIZE = '20px';
+
+	static final HUGE = css('
+		font-size: ${2 * SIZE}
+	');
+
+	static final GREEN = css('
+		background: green;
+	');
+
+	static final ROTATING_STAR = css('
+		@keyframes rotation {
+			from: {
+				transform:
+			}
+		}
+	');
+
 	static function main() {
 		trace(bar.table);
 		trace(bar.div);
 		trace(foo);
-	}	
+	}
 }

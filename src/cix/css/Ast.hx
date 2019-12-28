@@ -31,8 +31,8 @@ enum abstract BinOp(String) to String {
   var OpDiv = '/';
 
   static public final all:Iterable<BinOp> = [OpAdd, OpSubt, OpMult, OpDiv];
-  
-  public function getPrio():Int 
+
+  public function getPrio():Int
     return switch this {
       case OpAdd | OpSubt: 0;
       default: 1;
@@ -60,13 +60,13 @@ enum abstract Unit(String) to String {
     return switch this {
       case Deg: KAngle;
       case Sec | MS: KDuration;
-      case None: KScalar;
+      case None: KUnitless;
       default: KLength;
     }
 }
 
 enum abstract UnitKind(String) to String {
-  var KScalar = 'scalar';
+  var KUnitless = 'unitless';
   var KLength = 'length';
   var KDuration = 'duration';
   var KAngle = 'angle';
@@ -78,7 +78,7 @@ typedef Property = {
 }
 
 typedef DeclarationOf<Child:DeclarationOf<Child>> = {
-  
+
   final properties:ListOf<Property>;
 
   final childRules:ListOf<{
