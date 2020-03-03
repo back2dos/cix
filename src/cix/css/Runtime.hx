@@ -1,6 +1,6 @@
 package cix.css;
 
-#if (js && !nodejs)
+#if (cix.embed || (js && !nodejs))
 class Runtime {
   static var indices:Map<String, Int>;
   
