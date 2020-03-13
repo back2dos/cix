@@ -105,7 +105,7 @@ class Run {
 	static final ROTATING_STAR = css('
 		@keyframes rotation {
 			from: {
-				transform:
+				transform: none;
 			}
 		}
 	');
