@@ -56,14 +56,14 @@ class Normalizer<Error> {
   function call(s, name:StringAt, args)
     return switch name.value {
       case CSS_BUILTINS[_] => true: Success(s);
-      case call: 
+      case call:
         var fn = switch resolvedCalls[call] {
           case null: resolvedCalls[call] = callResolver.resolve(call);
           case fn: fn;
         }
-        
+
         switch fn {
-          case Some(fn): 
+          case Some(fn):
             switch fn(s, args) {
               case Success(v): Success(v);
               case Failure(e): Failure(reporter.makeError('${e.value} for function $call', e.pos));
@@ -109,7 +109,7 @@ class Normalizer<Error> {
         Success(map(s, s -> switch s.value {
           case VVar(name):
             switch resolve(name) {
-              case null: 
+              case null:
                 switch resolver({ value: name, pos: s.pos }) {
                   case null: fail('unknown identifier $name', s.pos);
                   case v: v;
@@ -203,10 +203,10 @@ class Normalizer<Error> {
       for (c in sheet.childRules)
         switch c.selector.value {
           case [[
-              { tag: name, id: null, classes: [] | null } 
+              { tag: name, id: null, classes: [] | null }
             | { tag: '' | '*' | null, classes: [name], id: null }
             | { classes: [] | null, tag: '' | '*' | null, id: name }
-            ]]: 
+            ]]:
               var d = c.declaration;
               {
                 name: { value: name, pos: c.selector.pos },
@@ -218,27 +218,27 @@ class Normalizer<Error> {
                   mediaQueries: sheet.mediaQueries,
                   childRules: sheet.childRules,
                   states: sheet.states,
-                }),
+                }, new Map()),
               }
-          default: 
+          default:
             fail('only simple selectors allowed here', c.selector.pos);
         }
     ];
   }
 
-  function getStates(d:Declaration) {
+  function getStates(d:Declaration):StateInfos {
     var ret = new Map();
 
     function sweep(d:Declaration) {
-      
+
       for (s in d.states) {
-        
+
         var name = s.name.value,
-            nfo = 
+            nfo =
               switch ret[name] {
-                case null: 
+                case null:
                   ret[name] = { options: [], boolish: false, pos: s.name.pos };
-                case v: v; 
+                case v: v;
               }
 
         switch s.cond {
@@ -249,7 +249,7 @@ class Normalizer<Error> {
         sweep(s.declaration);
       }
 
-      for (m in d.mediaQueries) 
+      for (m in d.mediaQueries)
         sweep(m.declaration);
 
       for (c in d.childRules)
@@ -261,10 +261,11 @@ class Normalizer<Error> {
 
   public function normalizeRule(d:Declaration):NormalizedDeclaration {
     var states = getStates(d);
-    return doNormalizeRule(d);
+    // trace(states);
+    return doNormalizeRule(d, states);
   }
 
-  function doNormalizeRule(d:Declaration):NormalizedDeclaration {
+  function doNormalizeRule(d:Declaration, s:StateInfos):NormalizedDeclaration {
 
     var fonts:Array<FontFace> = [],
         keyframes:Array<Keyframes> = [],
@@ -376,7 +377,7 @@ class Normalizer<Error> {
 
       return {
         properties: props(d.properties),
-        childRules: 
+        childRules:
           []
             .concat([
               for (c in d.childRules) {
@@ -388,10 +389,10 @@ class Normalizer<Error> {
               for (s in d.states) {
                 var selector:Located<Selector> = {
                   pos: s.name.pos,
-                  value: [[{ 
-                    pseudos: [Vendored('cix-state')], 
-                    attrs: [{ 
-                      name: s.name.value, 
+                  value: [[{
+                    pseudos: [Vendored('cix-state')],
+                    attrs: [{
+                      name: s.name.value,
                       op: switch s.cond {
                         case Eq(_) | IsNotSet: Exactly;
                         default: null;
@@ -400,7 +401,7 @@ class Normalizer<Error> {
                         case Eq(v): v.value;
                         default: null;
                       }
-                    }] 
+                    }]
                   }]],
                 };
                 {
@@ -424,3 +425,9 @@ class Normalizer<Error> {
     }
   }
 }
+
+private typedef StateInfos = Map<String, {
+  options:Array<StringAt>,
+  pos:Position,
+  boolish:Bool,
+}>;
