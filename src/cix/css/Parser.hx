@@ -25,7 +25,7 @@ class Parser extends SelectorParser {
   }
 
   function parseUnit()
-    return 
+    return
       if (allowHere('%')) Pct;
       else switch ident(true) {
         case Success(n):// this is not very safe
@@ -49,13 +49,13 @@ class Parser extends SelectorParser {
         fallback();
 
   static final HEX = DIGIT || 'abcdefABCDEF';
-  
+
   function parseColor() {
     var slice = readWhile(HEX);
 
     var s = slice.toString();
     switch s.length {
-      case 3: 
+      case 3:
         s = [for (i in 0...s.length) s.charAt(i) + s.charAt(i)].join('');
       case 6:
       default: reject(slice, 'hex literal must have 3 or 6 digits');
@@ -88,7 +88,7 @@ class Parser extends SelectorParser {
             if (allowHere('('))
               VCall(strAt(val), parseList(parseSingleValue.bind(), { sep: ',', end: ')' }));
             else
-              if (interpolated) 
+              if (interpolated)
                 VVar(val.toString() + readWhile(tink.csss.Parser.IDENT_CONTD || '.'));
               else switch COLOR_CONSTANTS[val] {
                 case null: VAtom(val);
@@ -158,14 +158,20 @@ class Parser extends SelectorParser {
 
   static var PROP_START = tink.csss.Parser.IDENT_START || '-';
 
-  function propName()
-    return 
-      if (is(PROP_START)) 
+  function tryPropName()
+    return
+      if (is(PROP_START))
         switch strAt(readWhile(tink.csss.Parser.IDENT_CONTD)) {
-          case { value : '-'}: die('- is not a valid property name');
-          case v: v;
+          case { value : '-'}: Failure('- is not a valid property name');
+          case v: Success(v);
         }
-      else die('property name expected');
+      else Failure('property name expected');
+
+  function propName()
+    return switch tryPropName() {
+      case Success(v): v;
+      case Failure(e): die(e);
+    }
 
   function parseProperty():Property
     return {
@@ -181,7 +187,7 @@ class Parser extends SelectorParser {
       );
 
   function getMediaType(?s:StringSlice):MediaCondition
-    return 
+    return
       if (s == null) getMediaType(ident().sure());
       else Type(switch s.toString() {
         case v = All | Print | Screen | Speech: cast v;
@@ -203,24 +209,24 @@ class Parser extends SelectorParser {
 
     function make(negated, condition) {
       var cond = located(() -> parseNext(condition()));
-      return { 
-        negated: negated, 
+      return {
+        negated: negated,
         value: cond.value,
         pos: cond.pos
       };
     }
-      
+
 
     return {
       conditions: parseList(
         () -> switch ident() {
-          case Success(_.toString() => 'not'): 
+          case Success(_.toString() => 'not'):
             make(true, getMediaType.bind());
-          case Success(id): 
+          case Success(id):
             make(false, getMediaType.bind(id));
-          default: 
+          default:
             make(false, () -> expect('(') + getMediaFeature());
-        }, 
+        },
         { end: '{', sep: ',', trailing: Never }
       ),
       declaration: parseDeclaration() + expect('}')
@@ -289,9 +295,9 @@ class Parser extends SelectorParser {
             case 'keyframes':
               keyframes.push(parseKeyFrames());
             case 'state':
-              
+
               expect('(');
-              
+
               function add(name, cond)
                 states.push({
                   name: name,
@@ -317,21 +323,39 @@ class Parser extends SelectorParser {
           });
           false;
         }
-        else
-          switch attempt(() -> tink.core.Error.catchExceptions(() -> propName() + expect(':'))) {
-            case Failure(e):
-              childRules.push({
-                selector: located(parseFullSelector),
-                declaration: expect('{') + parseDeclaration() + expect('}'),
-              });
+        else {
+          var isProp = lookahead(() -> switch tryPropName() {
+            case Success(_) if (allow(':')):
+
+              while (true) {
+                readWhile(INSIGNIFICANT_ISH);
+                switch current() {
+                  case '"'.code: parseString();
+                  case '$'.code:
+                    junk();
+                    if (allow('=')) return false;
+                    else return true;
+                  case '{'.code: return false;
+                  default: break;
+                }
+              }
               true;
-            case Success(name):
-              properties.push({
-                name: name,
-                value: parseValue(),
-              });
-              false;
-          }
+            default: false;
+          });
+
+          if (isProp)
+            properties.push({
+              name: propName() + expect(':'),
+              value: parseValue(),
+            });
+          else
+            childRules.push({
+              selector: located(parseFullSelector),
+              declaration: expect('{') + parseDeclaration() + expect('}'),
+            });
+
+          !isProp;
+        }
 
     function isDone()
       return upNext(BR_CLOSE) || pos >= max;
@@ -348,6 +372,8 @@ class Parser extends SelectorParser {
 
     return ret;
   }
+
+  static var INSIGNIFICANT_ISH = !Char('{};"$$');//chars that are insignificant when looking ahead for property vs. selector
 
   #if macro
   static function withParser<T>(e:Expr, f:Parser->T):Outcome<T, Error>
@@ -370,13 +396,13 @@ class Parser extends SelectorParser {
   #end
 
   static final COLOR_CONSTANTS:haxe.DynamicAccess<Color> = @:privateAccess {
-    /*
+    /**
       TODO: this should probably be elsewhere
-      Generated from https://drafts.csswg.org/css-color/ using 
-      
+      Generated from https://drafts.csswg.org/css-color/ using
+
       ```js
       Array.prototype.map.call(document.querySelectorAll('table.named-color-table tbody tr th'), c => ({ name: c.textContent.trim(), value: c.nextElementSibling.textContent.trim() }))
-      ````
+      ```
      */
     aliceblue: new Color(0xfff0f8ff),
     antiquewhite: new Color(0xfffaebd7),
