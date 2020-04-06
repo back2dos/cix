@@ -26,20 +26,24 @@ class Normalizer<Error> {
 
   static var CSS_BUILTINS = {
     var list = [
-      'calc', 'attr',
+      'calc', 'attr', 'var',
       'url', 'format',
-
-      'rgb', 'rgba', 'hsl', 'hsla',
-
-      'linear-gradient',
-
-      'blur', 'brightness', 'contrast', 'hue-rotate', 'grayscale',
-
-      'translate', 'translateX', 'translateY', 'translateZ', 'translate3d',
-      'rotate', 'rotateX', 'rotateY', 'rotateZ', 'rotate3d',
-      'scale', 'scaleX', 'scaleY', 'scale3d',
-      'skew', 'skewX', 'skewY', 'skew3d',
-      'perspective', 'matrix', 'matrix3d',
+      // easing
+      'cubic-bezier', 'steps'
+      // colors:
+        'rgb', 'rgba', 'hsl', 'hsla',
+      // gradients:
+        'linear-gradient', 'radial-gradient', 'repeating-linear-gradient', 'repeating-radial-gradient',
+      // filters:
+        'blur', 'brightness', 'contrast', 'hue-rotate', 'grayscale',
+      // transforms:
+        'translate', 'translateX', 'translateY', 'translateZ', 'translate3d',
+        'rotate', 'rotateX', 'rotateY', 'rotateZ', 'rotate3d',
+        'scale', 'scaleX', 'scaleY', 'scale3d',
+        'skew', 'skewX', 'skewY', 'skew3d',
+        'perspective', 'matrix', 'matrix3d',
+      // css grid:
+        'repeat', 'minmax',
     ];
 
     [for (l in list) l => true];
