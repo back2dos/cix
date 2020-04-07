@@ -29,7 +29,7 @@ class Normalizer<Error> {
       'calc', 'attr', 'var',
       'url', 'format',
       // easing
-      'cubic-bezier', 'steps'
+      'cubic-bezier', 'steps',
       // colors:
         'rgb', 'rgba', 'hsl', 'hsla',
       // gradients:
