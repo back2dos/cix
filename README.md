@@ -86,6 +86,8 @@ Various kinds of syntax are supported by cix in order to cause as much pain and 
 This syntax is leaning towards sass, to the degree that it's practical.
 
 ```haxe
+import cix.Style.rule as css;
+
 css('
   border: none !important;
   $color: red;
