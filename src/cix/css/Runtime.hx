@@ -9,7 +9,11 @@ class Runtime {
     if (indices == null) {
       indices = new Map();
       
+      var old = js.Browser.document.querySelector('head style#_cix_');
+      if(old != null) js.Browser.document.head.removeChild(old);
+      
       var style = js.Browser.document.createStyleElement();
+      style.id = '_cix_';
       js.Browser.document.head.appendChild(style);
       sheet = cast style.sheet;
     }
