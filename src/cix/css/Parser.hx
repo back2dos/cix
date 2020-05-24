@@ -250,7 +250,7 @@ class Parser extends SelectorParser {
           () -> {
             pos: switch ident() {
               case Success(_.toString() => v = 'from' | 'to' ):
-                if (v == 'from') 100;
+                if (v == 'to') 100;
                 else 0;
               case Success(id): reject(id, 'only `from`, `to` or percentage allowed');
               default:
