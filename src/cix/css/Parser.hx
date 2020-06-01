@@ -34,8 +34,11 @@ class Parser extends SelectorParser {
       }
 
   function parseNumber(num, sign) {
-    if (allowHere('.'))
-      num += Std.parseFloat('0.' + parseInt(true).sure());
+    if (allowHere('.')) {
+      var dp = 0;
+      while(allowHere('0')) dp++;
+      num += Std.parseFloat('0.' + parseInt(true).sure()) / Math.pow(10, dp);
+    }
     return VNumeric(num * sign, parseUnit());
   }
 
