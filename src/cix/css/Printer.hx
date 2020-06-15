@@ -13,10 +13,10 @@ import tink.parse.*;
 using StringTools;
 
 class Printer {
-  
-  function compoundValue(v:CompoundValue) 
+
+  function compoundValue(v:CompoundValue)
     return [
-      for (v in v.components) 
+      for (v in v.components)
         [for (single in v) singleValue(single, hSpace)].join(' ')
     ].join(',$hSpace');
 
@@ -25,7 +25,7 @@ class Printer {
   var indent:String;
 
   public function new(?options:{ final ?indent:String; final ?hSpace:String; }) {
-    
+
     this.hSpace = switch options {
       case null | { hSpace: null }: ' ';
       case { hSpace: v }: v;
@@ -45,8 +45,8 @@ class Printer {
 
     for (c in d.childRules) {
       var decl = plainDeclaration(
-        [for (p in paths) for (o in c.selector.value) SelectorPrinter.combine(' ', p, o)], 
-        c.declaration, 
+        [for (p in paths) for (o in c.selector.value) SelectorPrinter.combine(' ', p, o)],
+        c.declaration,
         indent
       );
       if (decl != '') ret.push(decl);
@@ -64,13 +64,13 @@ class Printer {
 
     for (f in d.fonts)
       ret = ret.concat(properties(() -> '@font-face', f.value));
-    
+
     ret.push(plainDeclaration(paths, d));
 
-    for (m in d.mediaQueries) 
+    for (m in d.mediaQueries)
       ret.push('@media ${mediaQuery(m.conditions)}$hSpace{$vSpace' + plainDeclaration(paths, m.declaration, indent) + '$vSpace}');
 
-    return ret.join('$vSpace$vSpace');        
+    return ret.join('$vSpace$vSpace');
   }
 
   function mediaQuery(conditions:ListOf<FullMediaCondition>) {
@@ -80,29 +80,29 @@ class Printer {
         case Feature(name, val): '(${name.value}:$hSpace${singleValue(val, hSpace)})';
         case Type(t): t;
       }
-    return [for (c in conditions) 
+    return [for (c in conditions)
       (if (c.negated) 'not' else '')
       + cond(c.value)
     ].join(',$vSpace');
   }
 
   function printKeyframes(k:Keyframes)
-    return 
+    return
       '@keyframes ${k.name.value}$hSpace{$vSpace'
-        + [for (f in k.frames) properties(() -> '${f.pos}%', f.properties, indent).join(vSpace)].join(vSpace) 
+        + [for (f in k.frames) properties(() -> '${[for (p in f.pos) p+'%'].join(', ')}', f.properties, indent).join(vSpace)].join(vSpace)
         + '$vSpace}';
 
-  function properties(prefix, properties:ListOf<Property>, indent = '') 
-    return 
+  function properties(prefix, properties:ListOf<Property>, indent = '')
+    return
       switch properties {
         case []: [];
         case props:
 
           var all = '$indent${prefix()}$hSpace{';
-        
+
           for (p in props)
             all += '$vSpace$indent${this.indent}${p.name.value}:$hSpace${compoundValue(p.value)}${[for (i in 0...p.value.importance) '$hSpace!important'].join('')};';
-        
+
           [all +'$vSpace$indent}'];
       }
 
@@ -112,7 +112,7 @@ class Printer {
       return singleValue(s, hSpace);
 
     return switch s.value {
-      case VNumeric(value, unit): 
+      case VNumeric(value, unit):
         value + switch unit {
           case null: '';
           case v: v;
@@ -129,14 +129,14 @@ class Printer {
         '#${c.get(RED)}${c.get(GREEN)}${c.get(BLUE)}'; // TODO: try generating short form
       case VColor(c):
         'rgba(${(c.get(RED):Int)}, ${(c.get(GREEN):Int)}, ${(c.get(BLUE):Int)}, ${c.get(ALPHA) / 0xFF})';
-      default: 
+      default:
         throw 'assert ${s.value}';
     }
   }
 }
 
 private class SelectorPrinter extends tink.csss.Printer {
-  
+
   var path:String;
 
   function new(space, path) {
@@ -160,18 +160,18 @@ private class SelectorPrinter extends tink.csss.Printer {
       option = [for (i in 1...option.length) option[i]];
 
     var ret = p.option(option);
-    return 
+    return
       if (hasAmp || isGlobal) ret;
       else '$path $ret';
   }
-  
+
   override public function part(s:SelectorPart) {
     /*
      * TODO: this is a bit of a nono, but for now it gets the job done.
      * An alternative might be to replace all `tag: '&'` with `tag: path` before printing.
      */
     var ret = super.part(s);
-    return 
+    return
       if (ret.charAt(0) == '&') path + ret.substr(1);
       else ret;
   }

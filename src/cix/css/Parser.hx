@@ -236,6 +236,16 @@ class Parser extends SelectorParser {
     }
   }
 
+  function parseFramePos():Float
+    return switch ident() {
+      case Success(_.toString() => v = 'from' | 'to' ):
+        if (v == 'to') 100;
+        else 0;
+      case Success(id): reject(id, 'only `from`, `to` or percentage allowed');
+      default:
+        parseInt().sure() + expect('%');
+    }
+
   function parseKeyFrames():Keyframes
     return {
       name: {
@@ -251,15 +261,12 @@ class Parser extends SelectorParser {
       frames:
         parseList(
           () -> {
-            pos: switch ident() {
-              case Success(_.toString() => v = 'from' | 'to' ):
-                if (v == 'to') 100;
-                else 0;
-              case Success(id): reject(id, 'only `from`, `to` or percentage allowed');
-              default:
-                parseInt().sure() + expect('%');
-            },
-            properties: expect(':') + parseProperties()
+            pos: ([do parseFramePos() while (allow(','))]:ListOf<Float>),
+            properties: {
+              if (allow(':'))
+                haxe.macro.Context.warning('":" not allowed here', makePos(pos-1));
+              parseProperties();
+            }
           },
           { start: '{', end: '}' }
         )

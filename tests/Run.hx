@@ -77,7 +77,7 @@ class Run {
 		foo, bar {
 			beep, boop {
 				@keyframes foo {
-					0%: {
+					0%, 25% {
 						transform: none;
 					}
 					100%: {

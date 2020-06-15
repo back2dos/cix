@@ -145,7 +145,7 @@ typedef AnimationName = StringAt & { final quoted:Bool; };
 typedef Keyframes = {
   final name:AnimationName;
   final frames:ListOf<{
-    final pos:Int;
+    final pos:ListOf<Float>;
     final properties:ListOf<Property>;
   }>;
 }

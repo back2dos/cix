@@ -15,7 +15,7 @@ class HxParser {
 
   static function tryProp(e:Expr):Outcome<Property, Error>
     return switch e {
-      case macro $name = $value: 
+      case macro $name = $value:
         if (value.expr.match(EBlock(_) | EObjectDecl(_)))
           name.reject('Did you mean `${name.toString()} => { ... }`?');
         Success(prop(name, value));
@@ -35,11 +35,11 @@ class HxParser {
       value: switch value {
         case { expr: EConst(CIdent(s)) }: VVar(s);
         case { expr: EConst(CString(s)) }: VString(s);
-        case { expr: EConst(CFloat(s) )}: VNumeric(Std.parseFloat(s)); 
-        case { expr: EConst(CInt(s) )}: VNumeric(Std.parseInt(s)); 
-        case macro $fn($a{args}): 
+        case { expr: EConst(CFloat(s) )}: VNumeric(Std.parseFloat(s));
+        case { expr: EConst(CInt(s) )}: VNumeric(Std.parseInt(s));
+        case macro $fn($a{args}):
           VCall(
-            { pos: fn.pos, value: fn.getIdent().sure() }, 
+            { pos: fn.pos, value: fn.getIdent().sure() },
             [for (a in args) switch val(a) {
               case { importance: 0, components: [[v]] }: v;
               default: a.reject('single css value expected');
@@ -48,13 +48,13 @@ class HxParser {
         default: value.reject('invalid expression');
       }
     }
-      
+
 
   static function val(value:Expr):CompoundValue
     return switch value {
-      case { expr: EConst(CString(s)) }: 
+      case { expr: EConst(CString(s)) }:
         Parser.parseVal(value).sure();
-      default: 
+      default:
         { importance: 0, components: [[singleVal(value)]] };
     }
 
@@ -71,12 +71,12 @@ class HxParser {
       value: val(value),
     }
 
-  static function parseDecl(e:Expr):Declaration 
+  static function parseDecl(e:Expr):Declaration
     return
       switch e.expr {
         case EConst(CString(_)): Parser.parseDecl(e).sure(); //TODO: this duplicates the switch in Generator
         default: parse(e);
-      }  
+      }
 
   static public function parse(e:Expr):Declaration {
 
@@ -123,7 +123,7 @@ class HxParser {
                     [for (e in exprs) switch e {
                       case macro $v{(pos:Int)} % $properties:
                         {
-                          pos: Std.parseInt(pos),
+                          pos: [Std.parseInt(pos)],
                           properties: props(properties),
                         }
                       default: e.reject('keyframe expected');
@@ -143,8 +143,8 @@ class HxParser {
                 return {
                   pos: e.pos,
                   value: e.getIdent().sure()
-                } 
-                
+                }
+
               function add(name, cond)
                 states.push({
                   name: s(name),
@@ -189,7 +189,7 @@ class HxParser {
   }
 
   static function selector(e:Expr):Selector
-    return 
+    return
       switch e {
         case macro $v{(s:String)}:
           @:privateAccess // TODO: this should not be necessary
@@ -210,7 +210,7 @@ class HxParser {
   }
 
   static function selectorOption(e:Expr):SelectorOption {
-    
+
     function patch(s:SelectorOption, patch:SelectorPart->SelectorPart):SelectorOption
       return [for (i in 0...s.length) {
         var p = s[i];
@@ -227,7 +227,7 @@ class HxParser {
 
     function pseudo(e:Expr)
       return switch e {
-        case macro $i{Casing.camelToKebab(_) => s}: 
+        case macro $i{Casing.camelToKebab(_) => s}:
           switch PSEUDOS[s] {
             case null: e.reject('unknown pseudo class/element');
             case v: v;
@@ -245,7 +245,7 @@ class HxParser {
             value: name(v),
             op: switch op {
               case OpAssign: Exactly;
-              case OpAssignOp(op): 
+              case OpAssignOp(op):
                 switch op {
                   case OpXor: BeginsWith;
                   case OpOr: HyphenSeparated;
