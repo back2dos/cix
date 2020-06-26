@@ -264,13 +264,29 @@ class Parser extends SelectorParser {
             pos: ([do parseFramePos() while (allow(','))]:ListOf<Float>),
             properties: {
               if (allow(':'))
-                haxe.macro.Context.warning('":" not allowed here', makePos(pos-1));
+                warn('":" not allowed here', makePos(pos-1));
               parseProperties();
             }
           },
           { start: '{', end: '}' }
         )
   }
+
+  static function warn(msg:String, pos:Position)
+    #if macro
+      haxe.macro.Context.warning(msg, pos);
+    #else
+      {
+        var pos = pos.file + '[${pos.min}...${pos.max}]';
+        #if js
+          js.Browser.console.warn(msg, pos);
+        #elseif sys
+          Sys.println('Warning: $msg in $pos');
+        #else
+          trace('Warning: $msg in $pos');
+        #end
+      }
+    #end
 
   function parseDeclaration():Declaration {
     var properties = [],
