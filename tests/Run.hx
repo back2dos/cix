@@ -110,9 +110,17 @@ class Run {
     }
   ');
 
+  static final NAV_COLUMN = css('
+    @media (min-width: 924px) {
+      min-height: 100%;
+      background: #f00;
+    }
+  ');
+
   static function main() {
     trace(bar.table);
     trace(bar.div);
     trace(foo);
+    trace(NAV_COLUMN);
   }
 }
