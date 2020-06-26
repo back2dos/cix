@@ -5,9 +5,10 @@ import tink.parse.Char.*;
 import tink.parse.StringSlice;
 import tink.csss.Selector;
 import cix.css.Ast;
-using tink.CoreApi;
 import haxe.macro.Expr;
 import tink.parse.Position;
+
+using tink.CoreApi;
 
 class Parser extends SelectorParser {
 

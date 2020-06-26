@@ -2,13 +2,6 @@ package cix.css;
 
 import cix.css.Ast;
 import tink.csss.Selector;
-import haxe.macro.*;
-
-// #if macro
-// import haxe.macro.Expr;
-// import haxe.macro.Type;
-// #end
-import tink.parse.*;
 
 using StringTools;
 
