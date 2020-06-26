@@ -99,25 +99,36 @@ class Generator {
     },
   }
 
+  static function parseConstant(path:StringAt, expr:TypedExpr) {
+
+    function fail(reason)
+      return path.pos.error('${path.value} reason');
+
+    return switch expr {
+      case null: fail('does not define a value');
+      case { expr: TConst(TString(v) | TInt(Std.string(_) => v) | TFloat(v)), pos: pos }:
+        switch Parser.parseVal({ pos: pos, expr: EConst(CString(v)) }) {
+          case Success({ components: [[v]], importance: 0 }): v;
+          case Success(_):
+            fail('should be a single css value');
+          case Failure(e):
+            fail('is not a css value because ${e.message}');
+        }
+      default:
+        fail('is not a constant string nor number');
+    }
+  }
+
   static function resolveDotPath(s:StringAt)
     return switch Context.typeExpr(macro @:pos(s.pos) $p{s.value.split('.')}) {
       case { expr: TField(_, fa) }:
         switch fa {
           case FStatic(_, _.get() => f) if (f.isFinal || f.kind.match(FVar(AccInline, _))):
-            switch f.expr() {
-              case { pos: pos, expr: TConst(TString(v) | TInt(Std.string(_) => v) | TFloat(v)) }:
-                switch Parser.parseVal({ pos: pos, expr: EConst(CString(v)) }) {
-                  case Success({ components: [[v]], importance: 0 }): v;
-                  case Success(_):
-                    s.pos.error('${s.value} should be a single css value');
-                  case Failure(e):
-                    s.pos.error('${s.value} is not a css value because ${e.message}');
-                }
-              default:
-                s.pos.error('${s.value} is not a string constant');
-            }
+            parseConstant(s, f.expr());
           default: s.pos.error('can only access final or inline static fields');
         }
+      case t = { expr: TConst(_) }:
+        parseConstant(s, t);
       case { expr: TLocal(_) }: s.pos.error('cannot access local variables');
       default: null;
     }

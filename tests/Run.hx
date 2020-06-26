@@ -5,7 +5,7 @@ import cix.Style.rule as css;
 
 class Run {
 
-  static final DURATION = '25s';
+  static inline var DURATION = '25s';
 
   static final bar = cix.Style.sheet({
     var color = 'red';
