@@ -102,7 +102,7 @@ class Generator {
   static function parseConstant(path:StringAt, expr:TypedExpr) {
 
     function fail(reason)
-      return path.pos.error('${path.value} reason');
+      return path.pos.error('${path.value} $reason');
 
     return switch expr {
       case null: fail('does not define a value');
