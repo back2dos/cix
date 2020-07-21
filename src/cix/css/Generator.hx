@@ -101,21 +101,22 @@ class Generator {
 
   static function parseConstant(path:StringAt, expr:TypedExpr) {
 
-    function fail(reason)
+    function fail(reason):Dynamic
       return path.pos.error('${path.value} $reason');
 
-    return switch expr {
-      case null: fail('does not define a value');
-      case { expr: TConst(TString(v) | TInt(Std.string(_) => v) | TFloat(v)), pos: pos }:
-        switch Parser.parseVal({ pos: pos, expr: EConst(CString(v)) }) {
-          case Success({ components: [[v]], importance: 0 }): v;
-          case Success(_):
-            fail('should be a single css value');
-          case Failure(e):
-            fail('is not a css value because ${e.message}');
-        }
-      default:
-        fail('is not a constant string nor number');
+    function getString(t:TypedExpr):String
+      return switch t.expr {
+        case TConst(TString(v) | TInt(Std.string(_) => v) | TFloat(v)): v;
+        case TBinop(OpAdd, t1, t2): getString(t1) + getString(t2);
+        default: fail('is not a constant string nor number');
+      }
+
+    return switch Parser.parseVal({ pos: expr.pos, expr: EConst(CString(getString(expr))) }) {
+      case Success({ components: [[v]], importance: 0 }): v;
+      case Success(_):
+        fail('should be a single css value');
+      case Failure(e):
+        fail('is not a css value because ${e.message}');
     }
   }
 
@@ -127,10 +128,9 @@ class Generator {
             parseConstant(s, f.expr());
           default: s.pos.error('can only access final or inline static fields');
         }
-      case t = { expr: TConst(_) }:
-        parseConstant(s, t);
       case { expr: TLocal(_) }: s.pos.error('cannot access local variables');
-      default: null;
+      case t:
+        parseConstant(s, t);
     }
 
   static function localMethod(pos:Position) {
