@@ -24,6 +24,7 @@ enum ValueKind {
 
 typedef StringAt = Located<String>;
 
+@:transitive
 enum abstract BinOp(String) to String {
   var OpAdd = '+';
   var OpSubt = '-';
