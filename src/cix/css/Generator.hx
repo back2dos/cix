@@ -188,7 +188,7 @@ class Generator {
     }]);
   }
 
-  static final META = ':cix-output';
+  static final META = ':cix.output';
   static final isEmbedded = #if cix_output false #else true #end;
   static var initialized = false;
   @:persistent static var classCounter = 0;
@@ -241,10 +241,12 @@ class Generator {
         #end
       }
 
-      var name = 'Cix${classCounter++}';
-      for (i in 0...100) // TODO: this loop pretty much duplicates logic in tink.macro.BuildCache
-        if (name.definedType() == None) break;
-        else name = 'Cix${classCounter++}';
+      var buf = new StringBuf();
+      for (c in classes) {
+        buf.add(c.className);
+        buf.add(c.css);
+      }
+      var name = 'Cix${haxe.crypto.Sha256.encode(buf.toString())}';
 
       var cls = {
         var p = name.asTypePath();
@@ -254,6 +256,7 @@ class Generator {
         }
       }
 
+      cls.meta.push({ name: ':cachaxe.forceCache', params: [], pos: pos });
       cls.meta.push({ name: META, params: [], pos: pos });
 
       for (c in classes)
