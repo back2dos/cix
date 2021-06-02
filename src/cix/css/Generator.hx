@@ -59,7 +59,11 @@ class Generator {
     );
 
   static var mimeTypes = Lazy.ofFunc(() -> {//TODO: this seems to be slow ... try to optimize
-    var raw:haxe.DynamicAccess<{ extensions: Null<Array<String>> }> = haxe.Json.parse(sys.io.File.getContent(Context.resolvePath('mime-db.json')));
+
+    var file = Context.resolvePath('mime-db.json');
+    var source = sys.io.File.getContent(file);
+
+    var raw:haxe.DynamicAccess<{ extensions: Null<Array<String>> }> = Context.parse(source, Context.makePosition({ file: file, min: 0, max: file.length })).eval();
     [for (key => value in raw)
       if (value.extensions != null)
         for (ext in value.extensions) ext => key
