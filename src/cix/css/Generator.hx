@@ -73,6 +73,7 @@ class Generator {
   static var calls:CallResolver = {
     mix: CallResolver.makeCall3(valToCol, valToCol, valToRatio, (c1, c2, f) -> Success(VColor(c1.mix(c2, f))), .5),
     invert: CallResolver.makeCall1(valToCol, c -> Success(VColor(c.invert()))),
+    raw: CallResolver.makeCall1(valToStr, s -> Success(VCall({ value: 'raw', pos: s.pos }, [{ pos: s.pos, value: VString(s.value) }]))),
     fade: CallResolver.makeCall2(valToCol, valToRatio, (c, f) -> Success(VColor(c.with(ALPHA, Math.round(c.get(ALPHA) * f))))),
     opacity: CallResolver.makeCall2(valToCol, valToRatio, (c, f) -> Success(VColor(c.with(ALPHA, Math.round(ChannelValue.FULL * f))))),
     huerotate: CallResolver.makeCall2(valToCol, valToAngle, (c, f) -> Success(VColor(Color.hsv(c.hue + f, c.saturation, c.value)))),

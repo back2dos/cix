@@ -8,10 +8,14 @@ using StringTools;
 class Printer {
 
   function compoundValue(v:CompoundValue)
-    return [
-      for (v in v.components)
-        [for (single in v) singleValue(single, hSpace)].join(' ')
-    ].join(',$hSpace');
+    return switch v.components {
+      case [[{ value: VCall({ value: 'raw' }, [{ value: VString(s) }]) }]]: s;
+      default:
+        [
+          for (v in v.components)
+            [for (single in v) singleValue(single, hSpace)].join(' ')
+        ].join(',$hSpace');
+    }
 
   var hSpace:String;
   var vSpace:String;
