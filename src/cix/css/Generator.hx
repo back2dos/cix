@@ -202,6 +202,7 @@ class Generator {
       if (!initialized) {
         initialized = true;
         #if cix_output
+          #if (cix_output != "skip")
           Context.onGenerate(types -> {
             Context.onAfterGenerate(() -> {
 
@@ -237,6 +238,7 @@ class Generator {
               out.close();
             });
           });
+          #end
         #else
           switch Context.getType('cix.css.Runtime').reduce() {
             case TInst(_.get().meta.has(':notSupported') => true, _):
