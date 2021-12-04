@@ -17,6 +17,7 @@
 		"tink_macro": "",
 		"tink_domspec": "",
 		"tink_color": "",
+		"tink_onbuild": "",
 		"mime": ""
 	}
 }
