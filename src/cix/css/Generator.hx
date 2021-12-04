@@ -274,9 +274,9 @@ class Generator {
           kind: FVar(
             macro : tink.domspec.ClassName,
             #if cix_output
-              macro $v{c.className}
+              macro cast $v{c.className}
             #else
-              macro cix.css.Declarations.add($v{c.className}, () -> $v{c.css})
+              macro cix.css.Declarations.add(cast $v{c.className}, () -> $v{c.css})
             #end
           ),
           meta: [#if cix_output { name: META, params: [macro $v{c.css}], pos: c.field.pos } #end],
