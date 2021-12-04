@@ -209,7 +209,6 @@ class Generator {
           #if (cix_output != "skip")
           tink.OnBuild.after.exprs.whenever(_ -> _ -> e -> switch e {
             case { expr: TCast({ expr: TConst(TString(s)) }, null), t:TAbstract(_.toString() => 'tink.domspec.ClassName', _) }:
-              // trace(s);
               kept[s] = true;
             default:
           });
@@ -224,8 +223,6 @@ class Generator {
                     Path.join([sys.FileSystem.absolutePath(Compiler.getOutput().directory()), relToOut]);
                 }
               );
-
-            trace(kept);
 
             var first = true;
             for (e in exported)
