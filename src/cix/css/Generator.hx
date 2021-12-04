@@ -196,47 +196,48 @@ class Generator {
   static final META = ':cix.output';
   static final isEmbedded = #if cix_output false #else true #end;
   static var initialized = false;
+  #if cix_output
+    static final exported = new Array<Named<String>>();
+  #end
   @:persistent static var classCounter = 0;
   static function export(pos:Position, classes:ListOf<{ final field:StringAt; final className:String; final css:String; }>)
     return {
       if (!initialized) {
         initialized = true;
         #if cix_output
+          var kept = new Map();
           #if (cix_output != "skip")
-          Context.onGenerate(types -> {
-            Context.onAfterGenerate(() -> {
+          tink.OnBuild.after.exprs.whenever(_ -> _ -> e -> switch e {
+            case { expr: TCast({ expr: TConst(TString(s)) }, null), t:TAbstract(_.toString() => 'tink.domspec.ClassName', _) }:
+              // trace(s);
+              kept[s] = true;
+            default:
+          });
 
-              var out =
-                sys.io.File.write(
-                  switch Context.definedValue('cix_output').trim() {
-                    case asIs = _.charAt(0) => '.' | '/':
-                      asIs;
-                    case relToOut:
-                      Path.join([sys.FileSystem.absolutePath(Compiler.getOutput().directory()), relToOut]);
-                  }
-                );
-
-              var first = true;
-              for (t in types)
-                switch t {
-                  case TInst(_.get() => cl, _) if (cl.meta.has(META) && cl.meta.has(':used')):
-                    for (f in cl.fields.get())
-                      for (tag in f.meta.extract(META))
-                        for (e in tag.params)
-                          switch e.expr {
-                            case EConst(CString(s)):
-                              if (first)
-                                first = false;
-                              else
-                                s = '\n\n\n$s';
-                              out.writeString(s);
-                            default: throw 'assert';
-                          }
-                  default:
+          tink.OnBuild.after.types.after(tink.OnBuild.EXPR_PASS, types -> {
+            var out =
+              sys.io.File.write(
+                switch Context.definedValue('cix_output').trim() {
+                  case asIs = _.charAt(0) => '.' | '/':
+                    asIs;
+                  case relToOut:
+                    Path.join([sys.FileSystem.absolutePath(Compiler.getOutput().directory()), relToOut]);
                 }
+              );
 
-              out.close();
-            });
+            trace(kept);
+
+            var first = true;
+            for (e in exported)
+              if (kept[e.name]) {
+                var css = e.value;
+                if (first)
+                  first = false;
+                else
+                  css = '\n\n\n$css';
+                out.writeString(css);
+              }
+            out.close();
           });
           #end
         #else
@@ -252,6 +253,9 @@ class Generator {
       for (c in classes) {
         buf.add(c.className);
         buf.add(c.css);
+        #if cix_output
+          exported.push(new Named(c.className, c.css));
+        #end
       }
       var name = 'Cix${haxe.crypto.Sha256.encode(buf.toString())}';
 
@@ -263,28 +267,27 @@ class Generator {
         }
       }
 
-      cls.meta.push({ name: ':cachaxe.forceCache', params: [], pos: pos });
       cls.meta.push({ name: META, params: [], pos: pos });
 
       for (c in classes)
         cls.fields.push({
           name: c.field.value,
           pos: c.field.pos,
-          access: [APublic, AFinal],
+          access: [APublic, AFinal #if cix_output , AStatic, AInline #end],
           kind: FVar(
-            macro : tink.domspec.ClassName,
+            null,
             #if cix_output
-              macro cast $v{c.className}
+              macro (cast $v{c.className}:tink.domspec.ClassName)
             #else
               macro cix.css.Declarations.add(cast $v{c.className}, () -> $v{c.css})
             #end
           ),
-          meta: [#if cix_output { name: META, params: [macro $v{c.css}], pos: c.field.pos } #end],
+          meta: [#if cix_output { name: META, params: [macro $v{c.className}, macro $v{c.css}], pos: c.field.pos } #end],
         });
 
       Context.defineType(cls);
 
-      macro @:pos(pos) $i{name}.inst;
+      macro @:pos(pos) $i{name} #if !cix_output .inst #end;
     }
 
   @:persistent static var counter = 0;
