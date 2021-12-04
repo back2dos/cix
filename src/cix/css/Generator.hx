@@ -294,7 +294,7 @@ class Generator {
 
   static public var namespace =
     switch Context.definedValue('cix-namespace') {
-      case null | '': 'χ';
+      case null | '': 'cx';
       case v: v;
     }
 
