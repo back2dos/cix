@@ -205,8 +205,8 @@ class Generator {
       if (!initialized) {
         initialized = true;
         #if cix_output
-          var kept = new Map();
           #if (cix_output != "skip")
+          var kept = new Map();
           tink.OnBuild.after.exprs.whenever(_ -> _ -> e -> switch e {
             case { expr: TCast({ expr: TConst(TString(s)) }, null), t:TAbstract(_.toString() => 'tink.domspec.ClassName', _) }:
               kept[s] = true;
