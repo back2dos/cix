@@ -10,6 +10,7 @@ import cix.css.Ast;
 import cix.css.*;
 import tink.color.*;
 
+using sys.FileSystem;
 using StringTools;
 using haxe.io.Path;
 using haxe.macro.Tools;
@@ -214,14 +215,24 @@ class Generator {
           });
 
           tink.OnBuild.after.types.after(tink.OnBuild.EXPR_PASS, types -> {
+            function ensureDir(path:String) {
+              var directory = path.directory();
+              if (!directory.exists()) {
+                ensureDir(directory);
+                directory.createDirectory();
+              }
+              return path;
+            }
             var out =
               sys.io.File.write(
-                switch Context.definedValue('cix_output').trim() {
-                  case asIs = _.charAt(0) => '.' | '/':
-                    asIs;
-                  case relToOut:
-                    Path.join([sys.FileSystem.absolutePath(Compiler.getOutput().directory()), relToOut]);
-                }
+                ensureDir(
+                  switch Context.definedValue('cix_output').trim() {
+                    case asIs = _.charAt(0) => '.' | '/':
+                      asIs;
+                    case relToOut:
+                      Path.join([sys.FileSystem.absolutePath(Compiler.getOutput().directory()), relToOut]);
+                  }
+                )
               );
 
             var first = true;
