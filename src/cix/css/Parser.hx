@@ -82,9 +82,12 @@ class Parser extends SelectorParser {
         else if (allowHere('#')) parseColor();
         else if (is(QUOTE)) VString(parseString());
         else if (allowHere('-'))
-          tryParseNumber(-1, () -> switch ident(true) {
-            case Success(v): VAtom('-' + v.toString());
-            default: die('expected identifier or number');
+          tryParseNumber(-1, () -> {
+            var prefix = if (allowHere('-')) '-' else '';
+            switch ident(true) {
+              case Success(v): VAtom('$prefix-' + v.toString());
+              default: die('expected identifier or number');
+            }
           });
         else tryParseNumber(1, function () {
           var val = ident(true).sure();
