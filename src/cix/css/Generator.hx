@@ -142,6 +142,8 @@ class Generator {
   static function localMethod(pos:Position) {
     var ret = Context.getLocalMethod();
 
+    if (ret == 'new') return ret;// TODO: could be good to seek a class field the position of which contains pos
+
     if (!isEmbedded) {
       var cl = Context.getLocalClass().get();
       switch [cl.findField(ret, true), cl.findField(ret, false)] {
