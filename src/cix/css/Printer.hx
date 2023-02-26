@@ -117,7 +117,13 @@ class Printer {
       case VAtom(value):
         value;
       case VString(value):
-        '"' + value.replace('"', '\\"') + '"';
+        var single = value.split("'"),
+            double = value.split('"');
+
+        if (single.length < double.length)
+          "'" + single.join("\\'") + "'"
+        else
+          '"' + double.join('\\"') + '"';
       case VBinOp(op, rec(_) => lh, rec(_) => rh):
         '$lh$hSpace$op$hSpace$rh';
       case VCall(name, [for (a in _) rec(a)].join(',$hSpace') => args):
