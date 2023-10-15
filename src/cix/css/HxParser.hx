@@ -105,7 +105,7 @@ class HxParser {
       case EBlock(exprs):
         for (e in exprs)
           switch e {
-            case macro var $name = $value:
+            case { expr: EVars([{ name: name, expr: value }]) }:
               variables.push({
                 name: { pos: e.pos, value: name },
                 value: val(value)
