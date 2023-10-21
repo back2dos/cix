@@ -98,21 +98,7 @@ class Generator {
             }
             case v: v;
           }
-
-          var content = {
-            var isAscii = true,
-                data = content.getData();
-
-            for (i in 0...content.length)
-              if (data[i] > 0x7F) {
-                isAscii = false;
-                break;
-              }
-
-            if (isAscii) content.toString().replace('\n', '\\n').replace('\r', '\\r');
-            else 'base64,${haxe.crypto.Base64.encode(content)}';
-          }
-          Success(VCall({ value: 'url', pos: path.pos }, [{ pos: path.pos, value: VString('data:$contentType;$content')}]));
+          Success(VCall({ value: 'url', pos: path.pos }, [{ pos: path.pos, value: VString('data:$contentType;base64,${haxe.crypto.Base64.encode(content)}')}]));
         },
         { value: 'auto', pos: (macro null).pos }
       );
